@@ -1,0 +1,50 @@
+[
+  {
+    "coche_id": "auto_101",
+    "vendedor_id": "usr_001",
+    "marca": "Toyota",
+    "modelo": "Corolla",
+    "año": 2022,
+    "kilometraje": 35000,
+    "precio_base": 18000,
+    "precio_reserva": 19500,
+    "estado_subasta": "activa",
+    "fecha_inicio": "2026-06-10T08:00:00Z",
+    "fecha_fin": "2026-06-17T20:00:00Z",
+    "especificaciones": {
+      "motor": "1.8L Híbrido",
+      "transmision": "Automática e-CVT",
+      "combustible": "Híbrido",
+      "color": "Gris Plata"
+    },
+    "caracteristicas_extra": [
+      "asientos de cuero",
+      "cámara de retroceso",
+      "control de crucero adaptativo"
+    ]
+  },
+  {
+    "coche_id": "auto_102",
+    "vendedor_id": "usr_001",
+    "marca": "Ford",
+    "modelo": "Mustang GT",
+    "año": 2020,
+    "kilometraje": 18000,
+    "precio_base": 35000,
+    "precio_reserva": 38000,
+    "estado_subasta": "activa",
+    "fecha_inicio": "2026-06-11T00:00:00Z",
+    "fecha_fin": "2026-06-18T00:00:00Z",
+    "especificaciones": {
+      "motor": "5.0V8",
+      "transmision": "Manual",
+      "combustible": "Gasolina",
+      "color": "Negro Shadow"
+    },
+    "caracteristicas_extra": [
+      "escape activo de rendimiento",
+      "frenos Brembo",
+      "asientos deportivos Recaro"
+    ]
+  }
+]

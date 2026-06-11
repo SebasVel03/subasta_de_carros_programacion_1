@@ -1,0 +1,19 @@
+{
+  "auto_101": [
+    {
+      "puja_id": "puj_101_001",
+      "usuario_id": "usr_002",
+      "monto": 18500,
+      "fecha_hora": "2026-06-11T09:15:00Z",
+      "metodo_pago_verificado": true
+    },
+    {
+      "puja_id": "puj_101_002",
+      "usuario_id": "usr_003",
+      "monto": 19200,
+      "fecha_hora": "2026-06-11T10:30:22Z",
+      "metodo_pago_verificado": true
+    }
+  ],
+  "auto_102": []
+}
