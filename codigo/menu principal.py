@@ -1,4 +1,5 @@
 import clientes
+
 def menu_principal():
     while True:
         print("\n--- SISTEMA DE SUBASTAS - MÓDULO CLIENTES ---")
