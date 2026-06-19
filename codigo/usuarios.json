@@ -2,28 +2,37 @@
   "usr_001": {
     "nombre": "Ana Lepage",
     "email": "ana.lepage@email.com",
+    "contraseña": "contraseña1212",
     "telefono": "+34600111222",
     "rol": "vendedor",
     "fecha_registro": "2026-01-15T09:30:00Z",
     "reputacion_estrellas": 4.8,
-    "verificado": true
+    "verificado": true,
+    "autos_en_posesion": [
+      "auto_101",
+      "auto_102"
+    ]
   },
   "usr_002": {
     "nombre": "Carlos Mendoza",
     "email": "carlos.m@email.com",
+    "contraseña": "contraseña1111",
     "telefono": "+34600333444",
     "rol": "postor",
     "fecha_registro": "2026-03-22T14:15:00Z",
     "reputacion_estrellas": 5.0,
-    "verificado": true
+    "verificado": true,
+    "autos_en_posesion": []
   },
   "usr_003": {
     "nombre": "María Silva",
     "email": "maria.silva@email.com",
+    "contraseña": "contraseña1313",
     "telefono": "+34600555666",
     "rol": "postor",
     "fecha_registro": "2026-05-01T18:45:00Z",
     "reputacion_estrellas": 4.2,
-    "verificado": false
+    "verificado": false,
+    "autos_en_posesion": []
   }
 }
