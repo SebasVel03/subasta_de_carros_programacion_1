@@ -131,7 +131,7 @@ class AdministradorCompraVenta:
     def generar_reporte_financiero(self):
         """Calcula el volumen del mercado y las ganancias por comisiones de la app."""
         total_ventas = sum(c.precio_final_venta for c in self.carros.values() if c.estado_subasta == "vendido")
-        ganancia_plataforma = total_ventas * self.comiporcentaje_actual() # aplicando tasa fija
+        ganancia_plataforma = total_ventas * self.comi_porcentaje # aplicando tasa fija
         ganancia_plataforma = total_ventas * self.comision_porcentaje
 
         print("\n==================================================")
