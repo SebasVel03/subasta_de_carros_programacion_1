@@ -1,3 +1,6 @@
+from Clase_Carro import Carro
+from Clase_Cliente import Cliente
+
 if __name__ == "__main__":
     # 1. Creamos un cliente (Fíjate que el paréntesis NO se cierra en Cliente)
     cliente1 = Cliente(
