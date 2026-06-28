@@ -1,0 +1,60 @@
+{
+  "usr_001": {
+    "nombre": "Ana Lepage",
+    "email": "ana.lepage@email.com",
+    "password_hash": "6e1dfdc6e6e4594beed4171538fc17d7859b551fb5260833c2ea3ce0f0c05cd5",
+    "telefono": "+34600111222",
+    "rol": "vendedor",
+    "fecha_registro": "2026-01-15T09:30:00Z",
+    "reputacion_estrellas": 4.8,
+    "verificado": true,
+    "autos_en_posesion": [
+      "auto_101",
+      "auto_102"
+    ]
+  },
+  "usr_002": {
+    "nombre": "Carlos Mendoza",
+    "email": "carlos.m@email.com",
+    "password_hash": "6cc31d1b8881c8fed7a53fe3ef64273571a33799757e73ea147ae7c35f861050",
+    "telefono": "+34600333444",
+    "rol": "postor",
+    "fecha_registro": "2026-03-22T14:15:00Z",
+    "reputacion_estrellas": 5.0,
+    "verificado": true,
+    "autos_en_posesion": []
+  },
+  "usr_003": {
+    "nombre": "María Silva",
+    "email": "maria.silva@email.com",
+    "password_hash": "5151e2ed9df98afc0a1c08f68114e3480d10e4ed4bde55133989b1aaaf1bc77a",
+    "telefono": "+34600555666",
+    "rol": "postor",
+    "fecha_registro": "2026-05-01T18:45:00Z",
+    "reputacion_estrellas": 4.2,
+    "verificado": false,
+    "autos_en_posesion": []
+  },
+  "usr_004": {
+    "nombre": "pepe",
+    "email": "shuhaugfvj@game.com",
+    "password_hash": "a088eb5310fb57eb1ab36ceaa5f09bfa1414b38566a1d3624ef8f92d5caf0a95",
+    "telefono": "",
+    "rol": "vendedor",
+    "fecha_registro": "2026-06-28T05:02:28.102793+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": []
+  },
+  "usr_005": {
+    "nombre": "lachba",
+    "email": "hacxhiqbhc@sjcb.com",
+    "password_hash": "1f8b6d5a89242a0984816601b1a527ed239e16e213182481301d2706f4396703",
+    "telefono": "",
+    "rol": "postor",
+    "fecha_registro": "2026-06-28T05:06:27.508297+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": []
+  }
+}
