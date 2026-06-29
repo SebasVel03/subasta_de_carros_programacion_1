@@ -56,5 +56,84 @@
     "reputacion_estrellas": 0.0,
     "verificado": true,
     "autos_en_posesion": []
+  },
+  "usr_006": {
+    "nombre": "akcbkahbvihab",
+    "email": "nmcabh@kabcj.com",
+    "password_hash": "8c1cdb9cb4dbac6dbb6ebd118ec8f9523d22e4e4cb8cc9df5f7e1e499bba3c10",
+    "telefono": "",
+    "rol": "admin",
+    "fecha_registro": "2026-06-28T14:55:51.586143+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": []
+  },
+  "usr_007": {
+    "nombre": "hvjhwb",
+    "email": "ajchuq@gacb.com",
+    "password_hash": "b2a21a3bb3eaff80f892a00d1c9b7ac7543fef89a4a191daefa1d594a715c70b",
+    "telefono": "",
+    "rol": "admin",
+    "fecha_registro": "2026-06-28T15:09:25.720559+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": [
+      "auto_003"
+    ]
+  },
+  "usr_008": {
+    "nombre": "iiiiii9i",
+    "email": "akjfakbc@hdacu.com",
+    "password_hash": "0e5f0ce00fe6be560e0e02595d0c012dd58a9eb75b96f6657772f584da475a03",
+    "telefono": "",
+    "rol": "admin",
+    "fecha_registro": "2026-06-28T15:11:36.921665+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": []
+  },
+  "usr_009": {
+    "nombre": "uuuuuu",
+    "email": "uuuuu@hajskc.com",
+    "password_hash": "84d89877f0d4041efb6bf91a16f0248f2fd573e6af05c19f96bedb9f882f7882",
+    "telefono": "",
+    "rol": "usuario",
+    "fecha_registro": "2026-06-28T20:02:55.305538+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": []
+  },
+  "usr_010": {
+    "nombre": "ana",
+    "email": "ana@gmil.com",
+    "password_hash": "15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225",
+    "telefono": "",
+    "rol": "usuario",
+    "fecha_registro": "2026-06-28T20:06:02.523125+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": []
+  },
+  "usr_011": {
+    "nombre": "ana",
+    "email": "sndjnq@jhca.com",
+    "password_hash": "15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225",
+    "telefono": "",
+    "rol": "usuario",
+    "fecha_registro": "2026-06-29T03:10:47.243935+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": []
+  },
+  "usr_012": {
+    "nombre": "kajhi",
+    "email": "kjhq@knbc.com",
+    "password_hash": "6ab73f2d9631005cce169305f220e96bc6a257ed490bb35ed4af1a72e9215dd6",
+    "telefono": "",
+    "rol": "usuario",
+    "fecha_registro": "2026-06-29T03:46:35.608056+00:00",
+    "reputacion_estrellas": 0.0,
+    "verificado": true,
+    "autos_en_posesion": []
   }
 }

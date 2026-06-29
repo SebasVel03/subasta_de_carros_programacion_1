@@ -8,7 +8,7 @@ reserva o no tuvieron pujas).
 
 import flet as ft
 from theme import Colors, Sizes, card
-from views.shared import page_shell, money, estado_badge, empty_state
+from views.shared import page_shell, money, estado_badge, empty_state, auto_imagen
 
 
 def _fila_venta(c: dict) -> ft.Container:
@@ -21,6 +21,7 @@ def _fila_venta(c: dict) -> ft.Container:
     return card(
         ft.Row(
             [
+                auto_imagen(c.get("imagen"), width=90, height=68),
                 ft.Column(
                     [
                         ft.Text(f'{c["marca"]} {c["modelo"]} ({c["anio"]})',
@@ -33,12 +34,13 @@ def _fila_venta(c: dict) -> ft.Container:
                 estado_badge(c["estado_subasta"]),
             ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            spacing=16,
         ),
         padding=16,
     )
 
 
-def ventas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None) -> ft.Container:
+def ventas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None, on_profile_click=None) -> ft.Container:
     ventas = sistema.obtener_mis_ventas(usuario_actual.id)
 
     vendidos = [v for v in ventas if v["estado_subasta"] == "vendido"]
@@ -91,4 +93,4 @@ def ventas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_ch
         spacing=0,
     )
 
-    return page_shell(usuario_actual, "VENTAS", body, on_nav_click=on_nav_click)
+    return page_shell(usuario_actual, "VENTAS", body, on_nav_click=on_nav_click, on_profile_click=on_profile_click)

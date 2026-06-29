@@ -74,16 +74,38 @@ def login_view(page: ft.Page, sistema, on_login_success=None) -> ft.Container:
     )
 
     rol_field = ft.RadioGroup(
-        value="postor",
-        content=ft.Row(
+        value="usuario",
+        content=ft.Column(
             [
-                ft.Radio(value="postor", label="Quiero comprar (pujar)",
+                ft.Radio(value="usuario", label="Quiero comprar y vender autos",
                          label_style=ft.TextStyle(color=Colors.TEXT_SECONDARY, size=13)),
-                ft.Radio(value="vendedor", label="Quiero vender autos",
+                # NOTA PARA EL EQUIPO: dejar que cualquiera intente registrarse
+                # como 'admin' desde este formulario es solo un atajo de demo
+                # para poder probar la pantalla de Revisión sin montar un
+                # proceso de invitación aparte (por eso pide un código). En
+                # producción, las cuentas de admin/experto NO deberían poder
+                # crearse desde un registro público en absoluto.
+                ft.Radio(value="admin", label="Soy experto/administrador (revisión de vehículos)",
                          label_style=ft.TextStyle(color=Colors.TEXT_SECONDARY, size=13)),
             ],
-            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=4,
         ),
+        on_change=lambda e: (sincronizar_ui(), page.update()),
+    )
+
+    codigo_admin_field = ft.TextField(
+        hint_text="Código de administrador",
+        hint_style=ft.TextStyle(color=Colors.TEXT_MUTED),
+        bgcolor=Colors.INPUT_BG,
+        color=Colors.INPUT_TEXT,
+        border_color="transparent",
+        focused_border_color=Colors.ACCENT_INDIGO,
+        border_radius=8,
+        width=380,
+        height=48,
+        content_padding=ft.Padding.symmetric(horizontal=16, vertical=12),
+        text_size=14,
+        visible=False,
     )
 
     error_text = ft.Text("", color=ft.Colors.RED_300, size=12)
@@ -101,6 +123,7 @@ def login_view(page: ft.Page, sistema, on_login_success=None) -> ft.Container:
         es_registro = estado["modo"] == "registro"
         nombre_field.visible = es_registro
         rol_field.visible = es_registro
+        codigo_admin_field.visible = es_registro and rol_field.value == "admin"
         titulo_text.value = "Crea una cuenta" if es_registro else "Inicia sesión"
         subtitulo_text.value = (
             "Ingresa tus datos para registrarte en esta app" if es_registro
@@ -137,8 +160,12 @@ def login_view(page: ft.Page, sistema, on_login_success=None) -> ft.Container:
                 error_text.value = "Ingresa tu nombre completo."
                 page.update()
                 return
-            # El usuario elige su rol en el formulario (Comprador/Postor o Vendedor).
-            ok, resultado = sistema.registrar_usuario(nombre, email, password, rol=rol_field.value)
+            # El usuario elige si quiere participar como usuario normal
+            # (puede comprar y vender) o pedir acceso de admin/experto.
+            ok, resultado = sistema.registrar_usuario(
+                nombre, email, password, rol=rol_field.value,
+                codigo_admin=codigo_admin_field.value if rol_field.value == "admin" else None,
+            )
         else:
             ok, resultado = sistema.autenticar_usuario(email, password)
 
@@ -204,12 +231,12 @@ def login_view(page: ft.Page, sistema, on_login_success=None) -> ft.Container:
 
     content = ft.Column(
         [
-            ft.Container(height=60),
+            ft.Container(height=24),
             ft.Text("subasta", size=64, weight=ft.FontWeight.W_300, color=Colors.TEXT_PRIMARY, font_family="Courier New"),
-            ft.Container(height=30),
+            ft.Container(height=20),
             titulo_text,
             subtitulo_text,
-            ft.Container(height=20),
+            ft.Container(height=16),
             nombre_field,
             ft.Container(height=10),
             email_field,
@@ -217,15 +244,18 @@ def login_view(page: ft.Page, sistema, on_login_success=None) -> ft.Container:
             password_field,
             ft.Container(height=6),
             rol_field,
+            codigo_admin_field,
             error_text,
             ft.Container(height=4),
             submit_button,
             toggle_row,
-            ft.Container(height=40),
+            ft.Container(height=20),
             terms_text,
+            ft.Container(height=20),
         ],
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         spacing=6,
+        scroll=ft.ScrollMode.AUTO,
     )
 
     return ft.Container(
@@ -233,5 +263,5 @@ def login_view(page: ft.Page, sistema, on_login_success=None) -> ft.Container:
         bgcolor=Colors.BACKGROUND,
         expand=True,
         alignment=ft.Alignment.TOP_CENTER,
-        padding=ft.Padding.only(top=20),
+        padding=ft.Padding.only(top=12, bottom=12),
     )

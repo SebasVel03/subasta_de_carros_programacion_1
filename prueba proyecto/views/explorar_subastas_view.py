@@ -7,7 +7,7 @@ y permite pujar directamente desde la lista, llamando a sistema.registrar_puja()
 
 import flet as ft
 from theme import Colors, Sizes, card
-from views.shared import page_shell, money, empty_state
+from views.shared import page_shell, money, empty_state, auto_imagen
 
 
 def _fila_subasta(c: dict, sistema, usuario_actual, page, on_change) -> ft.Container:
@@ -53,50 +53,51 @@ def _fila_subasta(c: dict, sistema, usuario_actual, page, on_change) -> ft.Conta
         disabled=c["es_propio"],
     )
 
-    controles_derecha = (
+    controles_derecha: list[ft.Control] = (
         [ft.Text("Es tu propio carro", size=12, color=Colors.TEXT_SECONDARY)]
         if c["es_propio"] else
         [monto_field, pujar_btn]
     )
 
-    return card(
-        ft.Column(
+    contenido: list[ft.Control] = [
+        ft.Row(
             [
-                ft.Row(
+                auto_imagen(c.get("imagen"), width=90, height=68),
+                ft.Column(
                     [
-                        ft.Column(
-                            [
-                                ft.Text(f'{c["marca"]} {c["modelo"]} ({c["anio"]})',
-                                         size=14, weight=ft.FontWeight.W_600, color=Colors.TEXT_PRIMARY),
-                                ft.Text(f'{c["kilometraje"]:,} km · {c["num_pujas"]} pujas · {tiempo_txt}',
-                                         size=12, color=Colors.TEXT_SECONDARY),
-                            ],
-                            spacing=2,
-                            expand=True,
-                        ),
-                        ft.Column(
-                            [
-                                ft.Text("Puja más alta", size=11, color=Colors.TEXT_SECONDARY),
-                                ft.Text(money(c["puja_maxima"]), size=16, weight=ft.FontWeight.BOLD,
-                                         color=Colors.TEXT_PRIMARY),
-                            ],
-                            horizontal_alignment=ft.CrossAxisAlignment.END,
-                            spacing=0,
-                        ),
+                        ft.Text(f'{c["marca"]} {c["modelo"]} ({c["anio"]})',
+                                 size=14, weight=ft.FontWeight.W_600, color=Colors.TEXT_PRIMARY),
+                        ft.Text(f'{c["kilometraje"]:,} km · {c["num_pujas"]} pujas · {tiempo_txt}',
+                                 size=12, color=Colors.TEXT_SECONDARY),
                     ],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    spacing=2,
+                    expand=True,
                 ),
-                ft.Container(height=10),
-                ft.Row(controles_derecha, alignment=ft.MainAxisAlignment.END, spacing=10),
-                feedback,
+                ft.Column(
+                    [
+                        ft.Text("Puja más alta", size=11, color=Colors.TEXT_SECONDARY),
+                        ft.Text(money(c["puja_maxima"]), size=16, weight=ft.FontWeight.BOLD,
+                                 color=Colors.TEXT_PRIMARY),
+                    ],
+                    horizontal_alignment=ft.CrossAxisAlignment.END,
+                    spacing=0,
+                ),
             ],
-            spacing=0,
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            spacing=16,
         ),
+        ft.Container(height=10),
+        ft.Row(controles_derecha, alignment=ft.MainAxisAlignment.END, spacing=10),
+        feedback,
+    ]
+
+    return card(
+        ft.Column(contenido, spacing=0),
         padding=16,
     )
 
 
-def explorar_subastas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None) -> ft.Container:
+def explorar_subastas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None, on_profile_click=None) -> ft.Container:
     subastas = sistema.obtener_subastas_explorar(id_usuario=usuario_actual.id)
 
     if subastas:
@@ -115,4 +116,4 @@ def explorar_subastas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=
         spacing=0,
     )
 
-    return page_shell(usuario_actual, "EXPLORAR SUBASTAS", body, on_nav_click=on_nav_click)
+    return page_shell(usuario_actual, "EXPLORAR SUBASTAS", body, on_nav_click=on_nav_click, on_profile_click=on_profile_click)

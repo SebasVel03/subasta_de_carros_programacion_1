@@ -217,7 +217,7 @@ def _closing_soon_table(subastas: list) -> ft.Container:
 # Vista principal
 # ---------------------------------------------------------------------------
 
-def dashboard_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None) -> ft.Container:
+def dashboard_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None, on_profile_click=None) -> ft.Container:
     """
     sistema: instancia de backend.AdministradorCompraVenta ya cargada.
     usuario_actual: instancia de backend.Usuario que inició sesión.
@@ -258,4 +258,4 @@ def dashboard_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on
         spacing=0,
     )
 
-    return page_shell(usuario_actual, "RESUMEN", body, on_nav_click=on_nav_click)
+    return page_shell(usuario_actual, "RESUMEN", body, on_nav_click=on_nav_click, on_profile_click=on_profile_click)

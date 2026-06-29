@@ -14,5 +14,14 @@
       "fecha_hora": "2026-06-11T10:30:22Z",
       "metodo_pago_verificado": true
     }
+  ],
+  "auto_003": [
+    {
+      "puja_id": "puj_auto_003_003",
+      "usuario_id": "usr_008",
+      "monto": 8494.0,
+      "fecha_hora": "2026-06-28T15:12:01.995786+00:00",
+      "metodo_pago_verificado": true
+    }
   ]
 }

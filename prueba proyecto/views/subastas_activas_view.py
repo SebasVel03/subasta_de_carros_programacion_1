@@ -8,7 +8,7 @@ oferta registrada o la marcó como favorita. También deja subir la puja.
 
 import flet as ft
 from theme import Colors, Sizes, card
-from views.shared import page_shell, money, empty_state
+from views.shared import page_shell, money, empty_state, auto_imagen
 
 ESTADO_OFERTA_COLOR = {
     "Activa": "#7ED957",
@@ -56,6 +56,7 @@ def _fila_mi_subasta(c: dict, sistema, usuario_actual, page, on_change) -> ft.Co
             [
                 ft.Row(
                     [
+                        auto_imagen(c.get("imagen"), width=90, height=68),
                         ft.Column(
                             [
                                 ft.Text(f'{c["marca"]} {c["modelo"]} ({c["anio"]})',
@@ -74,6 +75,7 @@ def _fila_mi_subasta(c: dict, sistema, usuario_actual, page, on_change) -> ft.Co
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    spacing=16,
                 ),
                 ft.Container(height=10),
                 ft.Row([monto_field,
@@ -93,7 +95,7 @@ def _fila_mi_subasta(c: dict, sistema, usuario_actual, page, on_change) -> ft.Co
     )
 
 
-def subastas_activas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None) -> ft.Container:
+def subastas_activas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None, on_profile_click=None) -> ft.Container:
     mis_subastas = sistema.obtener_mis_subastas_activas(usuario_actual.id)
 
     if mis_subastas:
@@ -115,4 +117,4 @@ def subastas_activas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=N
         spacing=0,
     )
 
-    return page_shell(usuario_actual, "SUBASTAS ACTIVAS", body, on_nav_click=on_nav_click)
+    return page_shell(usuario_actual, "SUBASTAS ACTIVAS", body, on_nav_click=on_nav_click, on_profile_click=on_profile_click)

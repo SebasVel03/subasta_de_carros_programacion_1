@@ -23,7 +23,14 @@
       "control de crucero adaptativo"
     ],
     "precio_final_venta": 0.0,
-    "comprador_id": null
+    "comprador_id": null,
+    "imagen": null,
+    "condicion_general": null,
+    "descripcion_danos": "",
+    "documentos_en_regla": false,
+    "duracion_dias": 7,
+    "fecha_publicacion": "2026-06-28T14:55:15.416764+00:00",
+    "motivo_rechazo": null
   },
   {
     "coche_id": "auto_102",
@@ -49,6 +56,42 @@
       "asientos deportivos Recaro"
     ],
     "precio_final_venta": 0.0,
-    "comprador_id": null
+    "comprador_id": null,
+    "imagen": null,
+    "condicion_general": null,
+    "descripcion_danos": "",
+    "documentos_en_regla": false,
+    "duracion_dias": 7,
+    "fecha_publicacion": "2026-06-28T14:55:15.416764+00:00",
+    "motivo_rechazo": null
+  },
+  {
+    "coche_id": "auto_003",
+    "vendedor_id": "usr_007",
+    "marca": "dbdas",
+    "modelo": "FadSD",
+    "año": 6666,
+    "kilometraje": 2272,
+    "precio_base": 24.0,
+    "precio_reserva": 71272.0,
+    "estado_subasta": "activa",
+    "fecha_inicio": "2026-06-28T15:11:47.591681+00:00",
+    "fecha_fin": "2026-09-06T15:11:47.591681+00:00",
+    "especificaciones": {
+      "motor": "BSG",
+      "transmision": "vsgasg",
+      "combustible": "asfafef",
+      "color": "feaf"
+    },
+    "caracteristicas_extra": [],
+    "precio_final_venta": 0.0,
+    "comprador_id": null,
+    "imagen": null,
+    "condicion_general": "Excelente",
+    "descripcion_danos": "",
+    "documentos_en_regla": true,
+    "duracion_dias": 70,
+    "fecha_publicacion": "2026-06-28T15:10:50.289802+00:00",
+    "motivo_rechazo": null
   }
 ]

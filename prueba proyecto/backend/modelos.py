@@ -110,12 +110,22 @@ class Carro:
     Reemplaza a las dos clases Carro que existían antes. Usa los mismos
     nombres de campo que carros.json (incluyendo fecha_inicio / fecha_fin,
     que antes se perdían al cargar los datos).
+
+    estado_subasta ahora puede ser:
+      'pendiente_revision' -> recién publicada, esperando que un admin/experto
+                               la revise (este es el estado inicial por defecto).
+      'activa'              -> aprobada, contando tiempo hasta fecha_fin.
+      'vendido' / 'no_vendido' -> ya cerrada.
+      'rechazada'           -> un admin la rechazó (ver motivo_rechazo).
     """
 
     def __init__(self, id_carro, vendedor_id, marca, modelo, anio, kilometraje,
-                 precio_base, precio_reserva, estado_subasta="activa",
+                 precio_base, precio_reserva, estado_subasta="pendiente_revision",
                  fecha_inicio=None, fecha_fin=None, especificaciones=None,
-                 extras=None, precio_final_venta=0.0, comprador_id=None):
+                 extras=None, precio_final_venta=0.0, comprador_id=None,
+                 imagen=None, condicion_general=None, descripcion_danos="",
+                 documentos_en_regla=False, duracion_dias=7,
+                 fecha_publicacion=None, motivo_rechazo=None):
         self.id = id_carro
         self.vendedor_id = vendedor_id
         self.marca = marca
@@ -124,16 +134,27 @@ class Carro:
         self.kilometraje = kilometraje
         self.precio_base = precio_base
         self.precio_reserva = precio_reserva
-        self.estado_subasta = estado_subasta  # 'activa' | 'vendido' | 'no_vendido'
+        self.estado_subasta = estado_subasta
         self.fecha_inicio = fecha_inicio
         self.fecha_fin = fecha_fin
         self.especificaciones = especificaciones if especificaciones is not None else {}
         self.extras = extras if extras is not None else []
         self.precio_final_venta = precio_final_venta
         self.comprador_id = comprador_id
+        # --- Imagen del vehículo: puede ser una URL o un string base64 (sin
+        # el prefijo 'data:'), ft.Image en Flet acepta ambos en 'src'. ---
+        self.imagen = imagen
+        # --- Campos para que un admin/experto pueda verificar la subasta ---
+        self.condicion_general = condicion_general  # 'Excelente' | 'Buena' | 'Regular' | 'Necesita reparación'
+        self.descripcion_danos = descripcion_danos
+        self.documentos_en_regla = documentos_en_regla
+        self.duracion_dias = duracion_dias  # cuántos días dura la subasta UNA VEZ aprobada
+        self.fecha_publicacion = fecha_publicacion or _ahora_iso()
+        self.motivo_rechazo = motivo_rechazo
 
     def tiempo_restante(self):
-        """Timedelta hasta fecha_fin, o None si el carro no tiene fecha_fin."""
+        """Timedelta hasta fecha_fin, o None si el carro no tiene fecha_fin
+        (por ejemplo, mientras está 'pendiente_revision' y todavía no se aprueba)."""
         fin = _parsear_fecha(self.fecha_fin)
         if fin is None:
             return None
@@ -162,6 +183,13 @@ class Carro:
             "extras": list(self.extras),
             "precio_final_venta": self.precio_final_venta,
             "comprador_id": self.comprador_id,
+            "imagen": self.imagen,
+            "condicion_general": self.condicion_general,
+            "descripcion_danos": self.descripcion_danos,
+            "documentos_en_regla": self.documentos_en_regla,
+            "duracion_dias": self.duracion_dias,
+            "fecha_publicacion": self.fecha_publicacion,
+            "motivo_rechazo": self.motivo_rechazo,
         }
 
     def __str__(self):

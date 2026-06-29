@@ -14,6 +14,16 @@ from datetime import datetime, timedelta, timezone
 
 from .modelos import Usuario, Carro, Puja, hash_password
 
+# Código que hay que ingresar para registrarse como 'admin' (experto/revisor).
+# Esto es mejor que dejar que cualquiera elija 'admin' libremente, pero sigue
+# siendo un código fijo en el código fuente — no es seguro para producción.
+# Antes de lanzar de verdad, esto debería:
+#   - venir de una variable de entorno / secreto, no estar escrito aquí, y
+#   - idealmente, las cuentas admin no deberían crearse por registro público
+#     en absoluto (las debería crear otro admin desde un panel, o invitarse
+#     por correo con un link de un solo uso).
+CODIGO_REGISTRO_ADMIN = "EXPERTO-SUBASTA-2026"
+
 
 class AdministradorCompraVenta:
     def __init__(self, comision_plataforma_porcentaje=0.05):
@@ -43,7 +53,8 @@ class AdministradorCompraVenta:
                     reputacion=d.get("reputacion_estrellas", 0.0),
                     fecha_registro=d.get("fecha_registro"),
                 )
-            # 2. Carros (ahora SÍ guardamos fecha_inicio / fecha_fin)
+            # 2. Carros (ahora SÍ guardamos fecha_inicio / fecha_fin, y los
+            #    nuevos campos de imagen + verificación)
             for c in json.loads(json_c):
                 id_c = c["coche_id"]
                 self.carros[id_c] = Carro(
@@ -55,6 +66,8 @@ class AdministradorCompraVenta:
                     kilometraje=c["kilometraje"],
                     precio_base=c["precio_base"],
                     precio_reserva=c["precio_reserva"],
+                    # Los carros de ejemplo originales no tenían estado de revisión;
+                    # si no viene el campo, se asume 'activa' para no romper esos datos.
                     estado_subasta=c.get("estado_subasta", "activa"),
                     fecha_inicio=c.get("fecha_inicio"),
                     fecha_fin=c.get("fecha_fin"),
@@ -62,6 +75,13 @@ class AdministradorCompraVenta:
                     extras=c.get("caracteristicas_extra", []),
                     precio_final_venta=c.get("precio_final_venta", 0.0),
                     comprador_id=c.get("comprador_id"),
+                    imagen=c.get("imagen"),
+                    condicion_general=c.get("condicion_general"),
+                    descripcion_danos=c.get("descripcion_danos", ""),
+                    documentos_en_regla=c.get("documentos_en_regla", False),
+                    duracion_dias=c.get("duracion_dias", 7),
+                    fecha_publicacion=c.get("fecha_publicacion"),
+                    motivo_rechazo=c.get("motivo_rechazo"),
                 )
             # 3. Pujas
             for id_carro, lista_pujas in json.loads(json_p).items():
@@ -124,6 +144,13 @@ class AdministradorCompraVenta:
                 "caracteristicas_extra": c.extras,
                 "precio_final_venta": c.precio_final_venta,
                 "comprador_id": c.comprador_id,
+                "imagen": c.imagen,
+                "condicion_general": c.condicion_general,
+                "descripcion_danos": c.descripcion_danos,
+                "documentos_en_regla": c.documentos_en_regla,
+                "duracion_dias": c.duracion_dias,
+                "fecha_publicacion": c.fecha_publicacion,
+                "motivo_rechazo": c.motivo_rechazo,
             }
             for c in self.carros.values()
         ]
@@ -147,9 +174,19 @@ class AdministradorCompraVenta:
     # =====================================================================
     # AUTENTICACIÓN
     # =====================================================================
-    def registrar_usuario(self, nombre, email, password, rol="postor", telefono=""):
+    def registrar_usuario(self, nombre, email, password, rol="usuario", telefono="", codigo_admin=None):
+        """
+        rol puede ser:
+          'usuario' -> puede comprar Y vender, sin tener que elegir una sola cosa.
+          'admin'   -> experto que revisa subastas. Requiere codigo_admin correcto
+                       (ver CODIGO_REGISTRO_ADMIN abajo) — si no, cualquiera podría
+                       autoasignarse permisos de administrador.
+        """
         if any(u.email.lower() == email.lower() for u in self.usuarios.values()):
             return False, "Ya existe una cuenta con ese correo."
+
+        if rol == "admin" and codigo_admin != CODIGO_REGISTRO_ADMIN:
+            return False, "Código de administrador incorrecto."
 
         nuevo_id = f"usr_{len(self.usuarios) + 1:03d}"
         nuevo_usuario = Usuario(
@@ -176,27 +213,114 @@ class AdministradorCompraVenta:
                 return False, "Contraseña incorrecta."
         return False, "No existe una cuenta con ese correo."
 
+    def actualizar_perfil(self, id_usuario, nombre=None, telefono=None):
+        usuario = self.usuarios.get(id_usuario)
+        if not usuario:
+            return False, "El usuario no existe."
+        if nombre:
+            usuario.nombre = nombre
+        if telefono is not None:
+            usuario.telefono = telefono
+        return True, usuario
+
+    def cambiar_password(self, id_usuario, password_actual, password_nueva):
+        usuario = self.usuarios.get(id_usuario)
+        if not usuario:
+            return False, "El usuario no existe."
+        if not usuario.verificar_password(password_actual):
+            return False, "La contraseña actual no es correcta."
+        if len(password_nueva) < 6:
+            return False, "La contraseña nueva debe tener al menos 6 caracteres."
+        usuario.password_hash = hash_password(password_nueva)
+        return True, usuario
+
     # =====================================================================
     # MÓDULO COMPRA (publicar un carro)
     # =====================================================================
     def recibir_carro_compra(self, id_vendedor, coche_id, marca, modelo, anio, kilometraje,
                               precio_base, precio_reserva, especificaciones, extras,
-                              fecha_inicio=None, fecha_fin=None):
+                              imagen=None, condicion_general=None, descripcion_danos="",
+                              documentos_en_regla=False, duracion_dias=7):
+        """
+        Publica un carro nuevo. A diferencia de antes, NO queda 'activa' de
+        inmediato: nace en 'pendiente_revision' y un admin/experto tiene que
+        aprobarla (ver aprobar_subasta) antes de que el público pueda verla
+        en 'Explorar Subastas' o pujar por ella.
+
+        Cualquier usuario verificado puede publicar — comprar y vender ya
+        no son roles exclusivos entre sí (ver registrar_usuario). Incluso un
+        admin puede publicar/pujar si quiere participar como usuario normal.
+        """
         vendedor = self.usuarios.get(id_vendedor)
-        if not vendedor or vendedor.rol != "vendedor":
-            return False, f"El usuario {id_vendedor} no existe o no tiene rol de vendedor."
+        if not vendedor:
+            return False, f"El usuario {id_vendedor} no existe."
         if not vendedor.verificado:
-            return False, f"El vendedor {vendedor.nombre} no está verificado. No puede publicar autos."
+            return False, f"{vendedor.nombre} no está verificado. No puede publicar autos."
         if coche_id in self.carros:
             return False, f"Ya existe un carro publicado con el id {coche_id}."
 
         nuevo_carro = Carro(
             coche_id, id_vendedor, marca, modelo, anio, kilometraje, precio_base,
-            precio_reserva, "activa", fecha_inicio, fecha_fin, especificaciones, extras,
+            precio_reserva, estado_subasta="pendiente_revision",
+            especificaciones=especificaciones, extras=extras,
+            imagen=imagen, condicion_general=condicion_general,
+            descripcion_danos=descripcion_danos, documentos_en_regla=documentos_en_regla,
+            duracion_dias=duracion_dias,
         )
         self.carros[coche_id] = nuevo_carro
         vendedor.autos_en_posesion.append(coche_id)
         return True, nuevo_carro
+
+    # =====================================================================
+    # MÓDULO REVISIÓN (admin/experto aprueba o rechaza antes de salir al público)
+    # =====================================================================
+    def aprobar_subasta(self, id_carro):
+        carro = self.carros.get(id_carro)
+        if not carro:
+            return False, "El carro no existe."
+        if carro.estado_subasta != "pendiente_revision":
+            return False, f"Este carro no está pendiente de revisión (estado actual: {carro.estado_subasta})."
+
+        ahora = datetime.now(timezone.utc)
+        carro.fecha_inicio = ahora.isoformat()
+        carro.fecha_fin = (ahora + timedelta(days=carro.duracion_dias)).isoformat()
+        carro.estado_subasta = "activa"
+        carro.motivo_rechazo = None
+        return True, carro
+
+    def rechazar_subasta(self, id_carro, motivo=""):
+        carro = self.carros.get(id_carro)
+        if not carro:
+            return False, "El carro no existe."
+        if carro.estado_subasta != "pendiente_revision":
+            return False, f"Este carro no está pendiente de revisión (estado actual: {carro.estado_subasta})."
+
+        carro.estado_subasta = "rechazada"
+        carro.motivo_rechazo = motivo or "No cumple los requisitos de la plataforma."
+        return True, carro
+
+    def obtener_subastas_pendientes_revision(self, excluir_vendedor_id=None):
+        """
+        Cola de revisión para el admin/experto, con todos los datos que necesita
+        para validar el vehículo (especificaciones, fotos, estado, vendedor).
+
+        excluir_vendedor_id: si el admin también publica carros propios (ahora
+        que cualquiera puede comprar y vender), no debería poder aprobar/rechazar
+        su propia subasta — eso se filtra pasando su propio id aquí.
+        """
+        pendientes = [c for c in self.carros.values()
+                      if c.estado_subasta == "pendiente_revision" and c.vendedor_id != excluir_vendedor_id]
+        pendientes.sort(key=lambda c: c.fecha_publicacion or "")
+
+        resultado = []
+        for c in pendientes:
+            vendedor = self.usuarios.get(c.vendedor_id)
+            d = c.to_dict()
+            d["vendedor_nombre"] = vendedor.nombre if vendedor else "Desconocido"
+            d["vendedor_reputacion"] = vendedor.reputacion if vendedor else 0
+            d["vendedor_verificado"] = vendedor.verificado if vendedor else False
+            resultado.append(d)
+        return resultado
 
     # =====================================================================
     # MÓDULO PUJAS (antes no existía: las pujas se insertaban a mano)
@@ -303,22 +427,24 @@ class AdministradorCompraVenta:
     # =====================================================================
     def publicar_carro(self, id_vendedor, marca, modelo, anio, kilometraje,
                         precio_base, precio_reserva, dias_duracion=7,
-                        especificaciones=None, extras=None):
+                        especificaciones=None, extras=None, imagen=None,
+                        condicion_general=None, descripcion_danos="",
+                        documentos_en_regla=False):
         """
-        Wrapper sobre recibir_carro_compra() que genera el id y las fechas
-        automáticamente, para que la pantalla de publicación solo tenga que
-        pedir los campos que el usuario realmente puede llenar.
+        Wrapper sobre recibir_carro_compra() que genera el id automáticamente,
+        para que la pantalla de publicación solo tenga que pedir los campos
+        que el vendedor realmente puede llenar. fecha_inicio/fecha_fin ya NO
+        se calculan aquí: se asignan cuando un admin aprueba la subasta
+        (ver aprobar_subasta), por eso solo guardamos dias_duracion por ahora.
         """
         coche_id = f"auto_{len(self.carros) + 1:03d}"
-        ahora = datetime.now(timezone.utc)
-        fecha_inicio = ahora.isoformat()
-        fecha_fin = (ahora + timedelta(days=dias_duracion)).isoformat()
-
         return self.recibir_carro_compra(
             id_vendedor=id_vendedor, coche_id=coche_id, marca=marca, modelo=modelo,
             anio=anio, kilometraje=kilometraje, precio_base=precio_base,
             precio_reserva=precio_reserva, especificaciones=especificaciones or {},
-            extras=extras or [], fecha_inicio=fecha_inicio, fecha_fin=fecha_fin,
+            extras=extras or [], imagen=imagen, condicion_general=condicion_general,
+            descripcion_danos=descripcion_danos, documentos_en_regla=documentos_en_regla,
+            duracion_dias=dias_duracion,
         )
 
     # =====================================================================
@@ -364,8 +490,11 @@ class AdministradorCompraVenta:
         diferencia con 'Explorar Subastas', que muestra TODO el mercado.
         """
         usuario = self.usuarios.get(id_usuario)
-        ids_con_oferta = {o["id_carro"] for o in (usuario.historial_ofertas if usuario else [])}
-        ids_favoritos = set(usuario.favoritos) if usuario else set()
+        if not usuario:
+            return []  # usuario inexistente: no hay nada que mostrarle
+
+        ids_con_oferta = {o["id_carro"] for o in usuario.historial_ofertas}
+        ids_favoritos = set(usuario.favoritos)
         ids_interes = ids_con_oferta | ids_favoritos
 
         activos = [c for c in self.carros.values()
