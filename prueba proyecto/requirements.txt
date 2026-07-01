@@ -1,2 +1,0 @@
-flet>=0.85.0
-flet-charts>=0.80.0
