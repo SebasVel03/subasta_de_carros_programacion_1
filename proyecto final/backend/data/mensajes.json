@@ -1,0 +1,110 @@
+[
+  {
+    "id": "msg_00001",
+    "id_carro": "auto_003",
+    "id_remitente": "usr_012",
+    "id_destinatario": "usr_007",
+    "texto": "hola quiero saber mas del auto",
+    "fecha_hora": "2026-07-02T05:07:54.534417+00:00",
+    "leido": false
+  },
+  {
+    "id": "msg_00002",
+    "id_carro": "auto_003",
+    "id_remitente": "usr_012",
+    "id_destinatario": "usr_007",
+    "texto": "buenas tardes",
+    "fecha_hora": "2026-07-03T02:57:50.207383+00:00",
+    "leido": false
+  },
+  {
+    "id": "msg_00003",
+    "id_carro": "auto_003",
+    "id_remitente": "usr_015",
+    "id_destinatario": "usr_007",
+    "texto": "si quiero",
+    "fecha_hora": "2026-07-04T19:42:21.867703+00:00",
+    "leido": false
+  },
+  {
+    "id": "msg_00004",
+    "id_carro": "auto_004",
+    "id_remitente": "usr_016",
+    "id_destinatario": "usr_015",
+    "texto": "hola yo quiero",
+    "fecha_hora": "2026-07-04T19:47:43.084691+00:00",
+    "leido": true
+  },
+  {
+    "id": "msg_00005",
+    "id_carro": "auto_004",
+    "id_remitente": "usr_015",
+    "id_destinatario": "usr_016",
+    "texto": "hola que tal",
+    "fecha_hora": "2026-07-04T19:48:03.666575+00:00",
+    "leido": true
+  },
+  {
+    "id": "msg_00006",
+    "id_carro": "auto_004",
+    "id_remitente": "usr_016",
+    "id_destinatario": "usr_015",
+    "texto": "FUNCIONAAAAAAAA",
+    "fecha_hora": "2026-07-04T19:48:27.379279+00:00",
+    "leido": true
+  },
+  {
+    "id": "msg_00007",
+    "id_carro": "auto_006",
+    "id_remitente": "usr_015",
+    "id_destinatario": "usr_016",
+    "texto": "hola puto",
+    "fecha_hora": "2026-07-08T03:15:47.241774+00:00",
+    "leido": true
+  },
+  {
+    "id": "msg_00008",
+    "id_carro": "auto_006",
+    "id_remitente": "usr_016",
+    "id_destinatario": "usr_015",
+    "texto": "holaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "fecha_hora": "2026-07-08T06:29:43.208254+00:00",
+    "leido": true
+  },
+  {
+    "id": "msg_00009",
+    "id_carro": "auto_004",
+    "id_remitente": "usr_015",
+    "id_destinatario": "usr_016",
+    "texto": "hola",
+    "fecha_hora": "2026-07-09T00:26:57.180437+00:00",
+    "leido": true
+  },
+  {
+    "id": "msg_00010",
+    "id_carro": "auto_102",
+    "id_remitente": "usr_015",
+    "id_destinatario": "usr_001",
+    "texto": "jhcdibfqhljhbav",
+    "fecha_hora": "2026-07-12T16:23:05.389443+00:00",
+    "leido": false
+  },
+  {
+    "id": "msg_00011",
+    "id_carro": "auto_003",
+    "id_remitente": "usr_015",
+    "id_destinatario": "usr_016",
+    "texto": "si",
+    "fecha_hora": "2026-07-12T16:23:30.103651+00:00",
+    "leido": true
+  },
+  {
+    "id": "msg_00012",
+    "id_carro": "auto_003",
+    "id_remitente": "usr_015",
+    "id_destinatario": "usr_016",
+    "texto": "KJOGRIJOWJHE",
+    "fecha_hora": "2026-07-13T11:48:15.129960+00:00",
+    "leido": true
+  }
+]

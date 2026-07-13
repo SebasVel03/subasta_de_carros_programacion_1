@@ -1,0 +1,36 @@
+{
+  "auto_101": [
+    {
+      "puja_id": "puj_101_001",
+      "usuario_id": "usr_002",
+      "monto": 18500,
+      "fecha_hora": "2026-07-10T06:41:59Z",
+      "metodo_pago_verificado": true
+    },
+    {
+      "puja_id": "puj_101_002",
+      "usuario_id": "usr_003",
+      "monto": 19200,
+      "fecha_hora": "2026-07-10T21:41:59Z",
+      "metodo_pago_verificado": true
+    }
+  ],
+  "auto_003": [
+    {
+      "puja_id": "puj_auto_003_003",
+      "usuario_id": "usr_015",
+      "monto": 99.0,
+      "fecha_hora": "2026-07-12T16:23:11.944969+00:00",
+      "metodo_pago_verificado": true
+    }
+  ],
+  "auto_102": [
+    {
+      "puja_id": "puj_auto_102_004",
+      "usuario_id": "usr_015",
+      "monto": 360000.0,
+      "fecha_hora": "2026-07-12T16:24:22.196001+00:00",
+      "metodo_pago_verificado": true
+    }
+  ]
+}
