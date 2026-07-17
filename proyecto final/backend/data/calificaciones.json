@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": "cal_00001",
+    "id_carro": "auto_003",
+    "id_calificador": "usr_015",
+    "id_calificado": "usr_016",
+    "estrellas": 4,
+    "comentario": "",
+    "fecha_hora": "2026-07-17T06:35:57.009705+00:00"
+  }
+]
