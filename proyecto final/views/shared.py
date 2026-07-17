@@ -90,12 +90,37 @@ def avatar_imagen(foto_perfil, size=36, bgcolor_respaldo=None) -> ft.Control:
     return control
 
 
+def boton_icono_con_badge(icono, count: int, on_click=None, tooltip=None) -> ft.Container:
+    """
+    Ícono circular con un badge numérico (ft.Badge nativo de Flet) cuando
+    count > 0. Extraído de lo que antes era solo _boton_mensajes, para que
+    lo pueda reusar cualquier otro ícono con la misma pinta -- hoy además lo
+    usa el ícono de notificaciones de 'Subastas Activas' (ver
+    views/subastas_activas_view.py / views/notificaciones_dialog.py).
+    """
+    badge = None
+    if count:
+        etiqueta = str(count) if count <= 9 else "9+"
+        badge = ft.Badge(label=etiqueta, bgcolor=Colors.ACCENT_TEAL, text_color=Colors.TEXT_ON_ACCENT)
+    return ft.Container(
+        content=ft.Icon(icono, color=Colors.TEXT_PRIMARY, size=22),
+        badge=badge,
+        width=36,
+        height=36,
+        border_radius=18,
+        alignment=ft.Alignment.CENTER,
+        on_click=(lambda e: on_click()) if on_click else None,
+        ink=on_click is not None,
+        tooltip=tooltip,
+    )
+
+
 def _boton_mensajes(mensajes_no_leidos: int, on_messages_click=None) -> ft.Container:
     """
     Ícono de la bandeja de mensajes para la barra superior, con un badge de
-    conteo (ft.Badge nativo de Flet) cuando hay mensajes sin leer. Al hacer
-    clic abre views/bandeja_mensajes_dialog.py con TODAS las conversaciones
-    del usuario activo en toda la plataforma — a diferencia de la lista de
+    conteo cuando hay mensajes sin leer. Al hacer clic abre
+    views/bandeja_mensajes_dialog.py con TODAS las conversaciones del
+    usuario activo en toda la plataforma — a diferencia de la lista de
     conversaciones dentro del detalle de una subasta puntual
     (views/detalle_subasta_dialog.py), que solo puede ver el VENDEDOR de ESE
     carro.
@@ -110,20 +135,7 @@ def _boton_mensajes(mensajes_no_leidos: int, on_messages_click=None) -> ft.Conta
     instancia no se entera de un mensaje nuevo de la otra hasta el próximo
     re-render de esa instancia.
     """
-    badge = None
-    if mensajes_no_leidos:
-        etiqueta = str(mensajes_no_leidos) if mensajes_no_leidos <= 9 else "9+"
-        badge = ft.Badge(label=etiqueta, bgcolor=Colors.ACCENT_TEAL, text_color=Colors.BACKGROUND)
-    return ft.Container(
-        content=ft.Icon(ft.Icons.CHAT_BUBBLE_OUTLINE_ROUNDED, color=Colors.TEXT_PRIMARY, size=22),
-        badge=badge,
-        width=36,
-        height=36,
-        border_radius=18,
-        alignment=ft.Alignment.CENTER,
-        on_click=(lambda e: on_messages_click()) if on_messages_click else None,
-        ink=on_messages_click is not None,
-    )
+    return boton_icono_con_badge(ft.Icons.CHAT_BUBBLE_OUTLINE_ROUNDED, mensajes_no_leidos, on_messages_click)
 
 
 def top_bar(usuario_actual, active_tab: str, on_nav_click=None, on_account_click=None,
@@ -247,7 +259,7 @@ def page_shell(usuario_actual, active_tab, body, sistema=None, on_nav_click=None
 def estado_badge(estado_subasta: str) -> ft.Container:
     return ft.Container(
         content=ft.Text(estado_subasta.replace("_", " ").upper(), size=11, weight=ft.FontWeight.W_600,
-                         color=Colors.BACKGROUND),
+                         color=Colors.TEXT_ON_ACCENT),
         bgcolor=ESTADO_COLORES.get(estado_subasta, Colors.TEXT_SECONDARY),
         padding=ft.Padding.symmetric(horizontal=10, vertical=4),
         border_radius=6,

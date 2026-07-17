@@ -1,0 +1,12 @@
+[
+  {
+    "id": "not_00001",
+    "id_usuario_destino": "usr_015",
+    "tipo": "puja_superada",
+    "texto": "Te superaron la puja en Ford Mustang GT (2020): la nueva puja más alta es $5,000,000.",
+    "id_carro": "auto_102",
+    "fecha_hora": "2026-07-17T03:27:31.304974+00:00",
+    "leido": true,
+    "avisada_en_app": true
+  }
+]

@@ -21,7 +21,17 @@ zona de acciones según quién está mirando:
 Además, si quien mira no es el propio vendedor, se muestra una fila con su
 nombre/foto/reputación/verificación debajo del título; un clic ahí abre su
 perfil público completo (views/perfil_vendedor_dialog.py) para que el
-comprador pueda evaluar si es confiable antes de pujar.
+comprador pueda evaluar si es confiable antes de pujar, y un corazón para
+agregar/quitar el carro de favoritos (ver sistema.agregar_favorito /
+quitar_favorito en backend/sistema.py).
+
+Si el carro tiene más de una foto (ver Carro.imagenes en modelos.py), debajo
+de la imagen principal aparece una fila de miniaturas para cambiarla —
+ver views/mis_carros_view.py para cómo se cargan al publicar.
+
+Una vez que el comprador ganador confirmó la entrega, se le ofrece un
+formulario para calificar al vendedor (1 a 5 estrellas + comentario
+opcional, una sola vez por compra — ver sistema.calificar_vendedor).
 """
 
 import flet as ft
@@ -55,7 +65,7 @@ def _tiempo_restante_texto(carro: dict) -> str:
 def _fila_conversacion(conv: dict, on_click) -> ft.Container:
     badge = (
         ft.Container(
-            content=ft.Text(str(conv["no_leidos"]), size=11, color=Colors.BACKGROUND, weight=ft.FontWeight.W_600),
+            content=ft.Text(str(conv["no_leidos"]), size=11, color=Colors.TEXT_ON_ACCENT, weight=ft.FontWeight.W_600),
             bgcolor=Colors.ACCENT_TEAL, width=20, height=20, border_radius=10,
             alignment=ft.Alignment.CENTER,
         )
@@ -123,6 +133,86 @@ def _fila_vendedor(vendedor_info: dict, on_click) -> ft.Container:
     )
 
 
+def _fila_favorito(es_favorito: bool, on_click) -> ft.Container:
+    """Corazón para agregar/quitar el carro de favoritos. Aparte de
+    _fila_vendedor porque tiene que verse aunque el vendedor no tenga perfil
+    público cargado (caso raro, datos rotos), y porque un postor puede
+    querer marcar el favorito sin necesariamente entrar al perfil del
+    vendedor."""
+    return ft.IconButton(
+        icon=ft.Icons.FAVORITE if es_favorito else ft.Icons.FAVORITE_BORDER,
+        icon_color=Colors.ACCENT_TEAL if es_favorito else Colors.TEXT_SECONDARY,
+        icon_size=22,
+        tooltip="Quitar de favoritos" if es_favorito else "Agregar a favoritos",
+        on_click=on_click,
+    )
+
+
+def _formulario_calificacion(sistema, usuario_actual, carro: dict, page: ft.Page, on_change) -> ft.Column:
+    """Selector de 1 a 5 estrellas (clickeables) + comentario opcional, para
+    que el comprador ganador califique al vendedor (ver
+    sistema.calificar_vendedor en backend/sistema.py). Es estado local del
+    diálogo hasta que se envía -- recién ahí se persiste."""
+    estado_estrellas = {"valor": 5}
+    feedback = ft.Text("", size=12, color="#E26A6A")
+    estrella_botones: list[ft.IconButton] = []
+
+    def _refrescar_estrellas():
+        for i, boton in enumerate(estrella_botones, start=1):
+            boton.icon = ft.Icons.STAR if i <= estado_estrellas["valor"] else ft.Icons.STAR_BORDER
+            boton.icon_color = Colors.ACCENT_TEAL if i <= estado_estrellas["valor"] else Colors.TEXT_MUTED
+
+    def handle_click_estrella(n):
+        def handler(e):
+            estado_estrellas["valor"] = n
+            _refrescar_estrellas()
+            page.update()
+        return handler
+
+    for i in range(1, 6):
+        estrella_botones.append(ft.IconButton(
+            icon=ft.Icons.STAR if i <= estado_estrellas["valor"] else ft.Icons.STAR_BORDER,
+            icon_color=Colors.ACCENT_TEAL if i <= estado_estrellas["valor"] else Colors.TEXT_MUTED,
+            icon_size=22,
+            on_click=handle_click_estrella(i),
+        ))
+
+    comentario_f = ft.TextField(
+        hint_text="Comentario (opcional)",
+        multiline=True, min_lines=2, max_lines=3,
+        bgcolor=Colors.SURFACE_ALT, border_color=Colors.BORDER, color=Colors.TEXT_PRIMARY,
+    )
+
+    def handle_enviar(e):
+        ok, resultado = sistema.calificar_vendedor(
+            carro["id"], usuario_actual.id, estado_estrellas["valor"], comentario_f.value or "",
+        )
+        if not ok:
+            feedback.value = resultado
+            page.update()
+            return
+        page.pop_dialog()
+        if on_change:
+            on_change()
+
+    return ft.Column(
+        [
+            ft.Text("Calificar al vendedor", size=13, weight=ft.FontWeight.BOLD, color=Colors.TEXT_PRIMARY),
+            ft.Row(estrella_botones, spacing=0),
+            comentario_f,
+            feedback,
+            ft.Container(height=6),
+            ft.ElevatedButton(
+                content=ft.Text("Enviar calificación"),
+                bgcolor=Colors.BUTTON_BG, color=Colors.BUTTON_TEXT,
+                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                on_click=handle_enviar,
+            ),
+        ],
+        spacing=6,
+    )
+
+
 def mostrar_detalle_subasta(page: ft.Page, sistema, usuario_actual, carro: dict, on_change=None) -> None:
     es_vendedor = usuario_actual.id == carro["vendedor_id"]
     es_comprador_ganador = carro.get("comprador_id") == usuario_actual.id
@@ -137,22 +227,74 @@ def mostrar_detalle_subasta(page: ft.Page, sistema, usuario_actual, carro: dict,
         page.update()
         mostrar_perfil_vendedor(page, sistema, carro["vendedor_id"])
 
-    # --- Cabecera: imagen ampliada + título + estado (+ fila del vendedor,
-    # salvo que quien mira sea el propio vendedor: no tiene sentido que se
-    # linkee a su propio perfil desde acá). ---
+    # --- Galería: imagen principal + miniaturas clickeables (si hay más de
+    # una foto). Es estado puramente visual/local a este diálogo -- cambiar
+    # de miniatura no necesita on_change ni tocar sistema.py, solo redibuja
+    # qué imagen se ve grande arriba. ---
+    imagenes = carro.get("imagenes") or ([carro["imagen"]] if carro.get("imagen") else [])
+    estado_galeria = {"indice": 0}
+    imagen_principal = ft.Container(
+        content=auto_imagen(imagenes[0] if imagenes else None, width=460, height=260, border_radius=12)
+    )
+    miniatura_containers: list[ft.Container] = []
+
+    def _actualizar_bordes_miniaturas():
+        for i, cont in enumerate(miniatura_containers):
+            cont.border = ft.Border.all(2, Colors.ACCENT_TEAL) if i == estado_galeria["indice"] else None
+
+    def handle_click_miniatura(indice):
+        def handler(e):
+            estado_galeria["indice"] = indice
+            imagen_principal.content = auto_imagen(imagenes[indice], width=460, height=260, border_radius=12)
+            _actualizar_bordes_miniaturas()
+            page.update()
+        return handler
+
+    for i, img in enumerate(imagenes):
+        miniatura_containers.append(
+            ft.Container(
+                content=auto_imagen(img, width=64, height=48, border_radius=6),
+                on_click=handle_click_miniatura(i),
+                ink=True,
+                border_radius=6,
+                padding=2,
+                border=ft.Border.all(2, Colors.ACCENT_TEAL) if i == 0 else None,
+            )
+        )
+    miniaturas = ft.Row(miniatura_containers, spacing=8, wrap=True) if len(imagenes) > 1 else ft.Container()
+
+    es_favorito = carro["id"] in usuario_actual.favoritos
+
+    def handle_toggle_favorito(e):
+        if es_favorito:
+            ok, resultado = sistema.quitar_favorito(usuario_actual.id, carro["id"])
+        else:
+            ok, resultado = sistema.agregar_favorito(usuario_actual.id, carro["id"])
+        if ok:
+            page.pop_dialog()
+            if on_change:
+                on_change()
+
+    # --- Cabecera: imagen ampliada + miniaturas + título + estado (+ fila
+    # del vendedor, salvo que quien mira sea el propio vendedor: no tiene
+    # sentido que se linkee a su propio perfil desde acá, ni que se pueda
+    # marcar su propio carro como favorito). ---
     vendedor_info = None if es_vendedor else sistema.obtener_perfil_publico_usuario(carro["vendedor_id"])
 
+    titulo_fila: list[ft.Control] = [
+        ft.Text(f'{carro["marca"]} {carro["modelo"]} ({carro["anio"]})',
+                 size=18, weight=ft.FontWeight.BOLD, color=Colors.TEXT_PRIMARY),
+    ]
+    if not es_vendedor:
+        titulo_fila.append(_fila_favorito(es_favorito, handle_toggle_favorito))
+    titulo_fila.append(estado_badge(carro["estado_subasta"]))
+
     encabezado_controles: list[ft.Control] = [
-        auto_imagen(carro.get("imagen"), width=460, height=260, border_radius=12),
+        imagen_principal,
+        ft.Container(height=8) if len(imagenes) > 1 else ft.Container(),
+        miniaturas,
         ft.Container(height=12),
-        ft.Row(
-            [
-                ft.Text(f'{carro["marca"]} {carro["modelo"]} ({carro["anio"]})',
-                         size=18, weight=ft.FontWeight.BOLD, color=Colors.TEXT_PRIMARY),
-                estado_badge(carro["estado_subasta"]),
-            ],
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-        ),
+        ft.Row(titulo_fila, alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
     ]
     if vendedor_info:
         encabezado_controles.append(ft.Container(height=10))
@@ -265,7 +407,7 @@ def mostrar_detalle_subasta(page: ft.Page, sistema, usuario_actual, carro: dict,
     elif carro["estado_subasta"] == "vendido" and es_comprador_ganador:
         acciones.append(
             ft.Container(
-                content=ft.Text("🎉 ¡Ganaste esta subasta!", size=14, weight=ft.FontWeight.BOLD, color=Colors.BACKGROUND),
+                content=ft.Text("🎉 ¡Ganaste esta subasta!", size=14, weight=ft.FontWeight.BOLD, color=Colors.TEXT_ON_ACCENT),
                 bgcolor="#7ED957", padding=ft.Padding.symmetric(horizontal=14, vertical=10), border_radius=8,
             )
         )
@@ -307,6 +449,25 @@ def mostrar_detalle_subasta(page: ft.Page, sistema, usuario_actual, carro: dict,
                 )
             )
             acciones.append(entrega_feedback)
+
+        # --- Calificación al vendedor: solo tiene sentido una vez que la
+        # entrega ya se confirmó (no antes -- calificar antes de recibir el
+        # auto no dice mucho), y una sola vez por compra (ver
+        # sistema.ya_califico_compra / calificar_vendedor). ---
+        if carro.get("entrega_confirmada"):
+            acciones.append(ft.Container(height=14))
+            if sistema.ya_califico_compra(carro["id"], usuario_actual.id):
+                propia = next(
+                    (c for c in sistema.obtener_calificaciones_usuario(carro["vendedor_id"])
+                     if c["id_carro"] == carro["id"] and c["id_calificador"] == usuario_actual.id),
+                    None,
+                )
+                estrellas_txt = "⭐" * propia["estrellas"] if propia else ""
+                acciones.append(
+                    ft.Text(f"Ya calificaste a este vendedor: {estrellas_txt}", size=13, color=Colors.ACCENT_TEAL)
+                )
+            else:
+                acciones.append(_formulario_calificacion(sistema, usuario_actual, carro, page, on_change))
 
     elif carro["estado_subasta"] in ("vendido", "no_vendido"):
         mensaje = (

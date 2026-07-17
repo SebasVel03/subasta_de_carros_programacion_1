@@ -31,6 +31,22 @@
       "monto": 360000.0,
       "fecha_hora": "2026-07-12T16:24:22.196001+00:00",
       "metodo_pago_verificado": true
+    },
+    {
+      "puja_id": "puj_auto_102_006",
+      "usuario_id": "usr_016",
+      "monto": 5000000.0,
+      "fecha_hora": "2026-07-17T03:27:31.304974+00:00",
+      "metodo_pago_verificado": true
+    }
+  ],
+  "auto_004": [
+    {
+      "puja_id": "puj_auto_004_005",
+      "usuario_id": "usr_015",
+      "monto": 888.0,
+      "fecha_hora": "2026-07-17T03:27:18.717960+00:00",
+      "metodo_pago_verificado": true
     }
   ]
 }

@@ -184,20 +184,7 @@ def _closing_soon_table(subastas: list) -> ft.Container:
     else:
         for s in subastas:
             horas = s["horas_restantes"]
-            # cerrar_subastas_vencidas() solo corre una vez al iniciar la app
-            # (ver docstring de esa función en sistema.py), así que durante
-            # una sesión larga una subasta puede vencer sin que su
-            # estado_subasta se actualice todavía a 'no_vendido'/'vendido'.
-            # Sin este chequeo, horas_restantes queda negativo y esta tabla
-            # mostraba algo confuso como "-3 h". registrar_puja() igual la
-            # rechaza correctamente en ese instante (revisa esta_vencida()
-            # en el momento de pujar), esto es solo cosmético.
-            if horas <= 0:
-                etiqueta_tiempo = "Cerrando..."
-            elif horas < 48:
-                etiqueta_tiempo = f"{horas:.0f} h"
-            else:
-                etiqueta_tiempo = f"{horas / 24:.0f} d"
+            etiqueta_tiempo = f"{horas:.0f} h" if horas < 48 else f"{horas / 24:.0f} d"
             rows.append(
                 ft.Container(
                     content=ft.Row(
@@ -231,12 +218,15 @@ def _closing_soon_table(subastas: list) -> ft.Container:
 # ---------------------------------------------------------------------------
 
 def dashboard_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None,
-                    on_account_click=None, on_search=None, valor_busqueda="", on_messages_click=None) -> ft.Container:
+                    on_account_click=None, on_search=None, valor_busqueda="", on_messages_click=None,
+                    valor_filtros=None, on_filtros_change=None) -> ft.Container:
     """
     sistema: instancia de backend.AdministradorCompraVenta ya cargada.
     usuario_actual: instancia de backend.Usuario que inició sesión.
     on_change: no se usa en esta vista (no hay acciones que mutan datos aquí),
     se acepta solo para que las vistas tengan la misma firma.
+    valor_filtros / on_filtros_change: idem, son de 'Explorar Subastas' (ver
+    ese archivo); se aceptan solo por la firma común de VISTAS en main.py.
     on_messages_click: abre la bandeja de mensajes global (ver
     views/bandeja_mensajes_dialog.py); se reenvía a page_shell, que a su vez
     la usa para el ícono de mensajes de la barra superior.

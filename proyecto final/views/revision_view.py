@@ -110,14 +110,14 @@ def _fila_revision(c: dict, sistema, page, on_change) -> ft.Container:
                     [
                         ft.ElevatedButton(
                             content=ft.Text("Aprobar y publicar"),
-                            bgcolor="#7ED957", color=Colors.BACKGROUND,
+                            bgcolor="#7ED957", color=Colors.TEXT_ON_ACCENT,
                             style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
                             on_click=handle_aprobar,
                         ),
                         motivo_field,
                         ft.ElevatedButton(
                             content=ft.Text("Rechazar"),
-                            bgcolor="#E26A6A", color=Colors.BACKGROUND,
+                            bgcolor="#E26A6A", color=Colors.TEXT_ON_ACCENT,
                             style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
                             on_click=handle_rechazar,
                         ),
@@ -134,7 +134,9 @@ def _fila_revision(c: dict, sistema, page, on_change) -> ft.Container:
 
 def revision_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None,
                    on_account_click=None, on_search=None, valor_busqueda="",
-                   on_messages_click=None) -> ft.Container:
+                   on_messages_click=None, valor_filtros=None, on_filtros_change=None) -> ft.Container:
+    # valor_filtros / on_filtros_change son de 'Explorar Subastas' (ver ese
+    # archivo); se aceptan solo por la firma común de VISTAS en main.py.
     if not usuario_actual or usuario_actual.rol != "admin":
         body = empty_state("Esta sección es solo para administradores/expertos de la plataforma.")
         return page_shell(usuario_actual, "REVISIÓN", body, sistema=sistema, on_nav_click=on_nav_click,

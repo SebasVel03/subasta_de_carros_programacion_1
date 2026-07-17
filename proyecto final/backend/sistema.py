@@ -14,24 +14,17 @@ Esta es la versión unificada y corregida de admin.py:
   usuario en toda la plataforma, sin importar el carro) y el conteo total
   de mensajes sin leer, para alimentar el ícono de notificaciones de la
   barra superior (ver views/bandeja_mensajes_dialog.py).
-- Ronda de QA: agrega validación numérica defensiva (_es_numero_positivo /
-  _es_numero_no_negativo) en registrar_puja() y recibir_carro_compra() para
-  rechazar montos/precios no numéricos, negativos, o NaN/infinito (Python
-  acepta float("nan") y float("inf") sin lanzar ValueError, así que el
-  try/except de las vistas no alcanzaba para frenarlos — una puja "inf"
-  quedaba invencible para siempre y una puja "nan" envenenaba cualquier
-  suma financiera que la incluyera). También valida que duracion_dias sea
-  >= 1 (con 0 o negativo, la subasta quedaba vencida en el instante mismo
-  en que se aprobaba) y que registrar_usuario() exija contraseña de al
-  menos 6 caracteres del lado del backend, no solo en login_view.py.
+- Agrega notificaciones del sistema (por ahora, "te superaron una puja"),
+  favoritos con métodos propios (antes solo vivían como método de Usuario,
+  sin wrapper con validación/tupla (ok, resultado) en esta capa), y
+  calificaciones de vendedor post-venta que alimentan Usuario.reputacion.
 """
 
 import json
-import math
 import re
 from datetime import datetime, timedelta, timezone
 
-from .modelos import Usuario, Carro, Puja, Mensaje, hash_password
+from .modelos import Usuario, Carro, Puja, Mensaje, Notificacion, Calificacion, hash_password
 
 # El rol admin/experto ya NO se elige a mano ni depende de un código fijo en
 # el código fuente (eso era inseguro y fácil de compartir sin querer). Ahora
@@ -54,42 +47,24 @@ def _es_formato_admin(email: str) -> bool:
     return bool(PATRON_EMAIL_ADMIN.fullmatch((email or "").strip()))
 
 
-# --- Validación numérica defensiva --------------------------------------
-# Python acepta float("nan") y float("inf") sin lanzar ValueError, así que
-# el try/except float(...) que hacen las vistas (ej. mis_carros_view.py,
-# explorar_subastas_view.py) NO alcanza para frenar a alguien que escribe
-# literalmente "nan" o "inf" en un campo de precio o de puja. Sin este
-# chequeo, una puja "inf" queda como la más alta para siempre (nada la
-# supera nunca) y una puja "nan" envenena cualquier suma financiera que la
-# incluya (dashboard, reportes, Excel). Estos helpers son el punto único
-# donde se blindan todos los montos/precios que entran al sistema.
-def _es_numero_positivo(valor) -> bool:
-    """True si valor es int/float, finito (ni NaN ni infinito), y > 0.
-    Excluye bool a propósito: bool es subclase de int en Python, y
-    True/False no son montos válidos aunque pasen isinstance(x, int)."""
-    return isinstance(valor, (int, float)) and not isinstance(valor, bool) and math.isfinite(valor) and valor > 0
-
-
-def _es_numero_no_negativo(valor) -> bool:
-    """Igual que _es_numero_positivo pero además acepta 0."""
-    return isinstance(valor, (int, float)) and not isinstance(valor, bool) and math.isfinite(valor) and valor >= 0
-
-
 class AdministradorCompraVenta:
     def __init__(self, comision_plataforma_porcentaje=0.05):
         self.usuarios = {}
         self.carros = {}
         self.pujas = []
         self.mensajes = []
+        self.notificaciones = []
+        self.calificaciones = []
         self.comision_porcentaje = comision_plataforma_porcentaje
 
     # =====================================================================
     # CARGA / PERSISTENCIA
     # =====================================================================
-    def cargar_datos_desde_json(self, json_u, json_c, json_p, json_m=None):
+    def cargar_datos_desde_json(self, json_u, json_c, json_p, json_m=None, json_not=None, json_cal=None):
         """Carga el sistema a partir de strings JSON ya leídos.
-        json_m (mensajes del chat) es opcional: si no se pasa, simplemente
-        no hay conversaciones cargadas (compatibilidad con código existente
+        json_m (mensajes del chat), json_not (notificaciones) y json_cal
+        (calificaciones) son opcionales: si no se pasan, simplemente no hay
+        datos cargados de esa categoría (compatibilidad con código existente
         que solo pasaba usuarios/carros/pujas)."""
         try:
             # 1. Usuarios
@@ -141,6 +116,7 @@ class AdministradorCompraVenta:
                     precio_final_venta=c.get("precio_final_venta", 0.0),
                     comprador_id=c.get("comprador_id"),
                     imagen=c.get("imagen"),
+                    imagenes=c.get("imagenes"),
                     condicion_general=c.get("condicion_general"),
                     descripcion_danos=c.get("descripcion_danos", ""),
                     documentos_en_regla=c.get("documentos_en_regla", False),
@@ -164,16 +140,32 @@ class AdministradorCompraVenta:
                         m["id"], m["id_carro"], m["id_remitente"], m["id_destinatario"],
                         m["texto"], m.get("fecha_hora"), m.get("leido", False),
                     ))
+            # 5. Notificaciones del sistema (opcional)
+            if json_not:
+                for n in json.loads(json_not):
+                    self.notificaciones.append(Notificacion(
+                        n["id"], n["id_usuario_destino"], n["tipo"], n["texto"],
+                        id_carro=n.get("id_carro"), fecha_hora=n.get("fecha_hora"),
+                        leido=n.get("leido", False), avisada_en_app=n.get("avisada_en_app", False),
+                    ))
+            # 6. Calificaciones de vendedor (opcional)
+            if json_cal:
+                for c in json.loads(json_cal):
+                    self.calificaciones.append(Calificacion(
+                        c["id"], c["id_carro"], c["id_calificador"], c["id_calificado"],
+                        c["estrellas"], comentario=c.get("comentario", ""), fecha_hora=c.get("fecha_hora"),
+                    ))
             return True
         except Exception as e:
             print(f"❌ Error al cargar datos: {e}")
             return False
 
-    def cargar_datos_desde_archivos(self, ruta_usuarios, ruta_carros, ruta_pujas, ruta_mensajes=None):
+    def cargar_datos_desde_archivos(self, ruta_usuarios, ruta_carros, ruta_pujas, ruta_mensajes=None,
+                                     ruta_notificaciones=None, ruta_calificaciones=None):
         """Lee los .json desde disco (UTF-8, por los acentos/ñ) y carga el sistema.
-        ruta_mensajes es opcional y, si el archivo todavía no existe (proyectos
-        más viejos que no lo tenían), simplemente arranca con el chat vacío en
-        vez de fallar."""
+        ruta_mensajes, ruta_notificaciones y ruta_calificaciones son opcionales
+        y, si el archivo todavía no existe (proyectos más viejos que no lo
+        tenían), simplemente arrancan vacíos en vez de fallar."""
         with open(ruta_usuarios, encoding="utf-8") as f:
             txt_u = f.read()
         with open(ruta_carros, encoding="utf-8") as f:
@@ -181,17 +173,23 @@ class AdministradorCompraVenta:
         with open(ruta_pujas, encoding="utf-8") as f:
             txt_p = f.read()
 
-        txt_m = None
-        if ruta_mensajes:
+        def _leer_opcional(ruta):
+            if not ruta:
+                return None
             try:
-                with open(ruta_mensajes, encoding="utf-8") as f:
-                    txt_m = f.read()
+                with open(ruta, encoding="utf-8") as f:
+                    return f.read()
             except FileNotFoundError:
-                txt_m = "[]"
+                return "[]"
 
-        return self.cargar_datos_desde_json(txt_u, txt_c, txt_p, txt_m)
+        txt_m = _leer_opcional(ruta_mensajes)
+        txt_not = _leer_opcional(ruta_notificaciones)
+        txt_cal = _leer_opcional(ruta_calificaciones)
 
-    def guardar_datos_a_archivos(self, ruta_usuarios, ruta_carros, ruta_pujas, ruta_mensajes=None):
+        return self.cargar_datos_desde_json(txt_u, txt_c, txt_p, txt_m, txt_not, txt_cal)
+
+    def guardar_datos_a_archivos(self, ruta_usuarios, ruta_carros, ruta_pujas, ruta_mensajes=None,
+                                  ruta_notificaciones=None, ruta_calificaciones=None):
         """
         Persiste el estado actual de vuelta a disco.
 
@@ -237,6 +235,7 @@ class AdministradorCompraVenta:
                 "precio_final_venta": c.precio_final_venta,
                 "comprador_id": c.comprador_id,
                 "imagen": c.imagen,
+                "imagenes": c.imagenes,
                 "condicion_general": c.condicion_general,
                 "descripcion_danos": c.descripcion_danos,
                 "documentos_en_regla": c.documentos_en_regla,
@@ -270,6 +269,16 @@ class AdministradorCompraVenta:
             with open(ruta_mensajes, "w", encoding="utf-8") as f:
                 json.dump(mensajes_json, f, ensure_ascii=False, indent=2)
 
+        if ruta_notificaciones:
+            notificaciones_json = [n.to_dict() for n in self.notificaciones]
+            with open(ruta_notificaciones, "w", encoding="utf-8") as f:
+                json.dump(notificaciones_json, f, ensure_ascii=False, indent=2)
+
+        if ruta_calificaciones:
+            calificaciones_json = [c.to_dict() for c in self.calificaciones]
+            with open(ruta_calificaciones, "w", encoding="utf-8") as f:
+                json.dump(calificaciones_json, f, ensure_ascii=False, indent=2)
+
     # =====================================================================
     # AUTENTICACIÓN
     # =====================================================================
@@ -286,14 +295,6 @@ class AdministradorCompraVenta:
         """
         if any(u.email.lower() == email.lower() for u in self.usuarios.values()):
             return False, "Ya existe una cuenta con ese correo."
-
-        # login_view.py ya valida esto del lado del cliente antes de llamar
-        # acá, pero el backend es la fuente de verdad: si mañana se agrega
-        # otra vía de registro (script de carga, otra vista), no debería
-        # heredar el agujero de no validar la contraseña. Mismo mínimo que
-        # cambiar_password() más abajo, para mantener una sola regla.
-        if len(password or "") < 6:
-            return False, "La contraseña debe tener al menos 6 caracteres."
 
         if _es_formato_admin(email):
             admins_actuales = len([u for u in self.usuarios.values() if u.rol == "admin"])
@@ -376,7 +377,7 @@ class AdministradorCompraVenta:
     # =====================================================================
     def recibir_carro_compra(self, id_vendedor, coche_id, marca, modelo, anio, kilometraje,
                               precio_base, precio_reserva, especificaciones, extras,
-                              imagen=None, condicion_general=None, descripcion_danos="",
+                              imagen=None, imagenes=None, condicion_general=None, descripcion_danos="",
                               documentos_en_regla=False, duracion_dias=7):
         """
         Publica un carro nuevo. A diferencia de antes, NO queda 'activa' de
@@ -387,6 +388,11 @@ class AdministradorCompraVenta:
         Cualquier usuario verificado puede publicar — comprar y vender ya
         no son roles exclusivos entre sí (ver registrar_usuario). Incluso un
         admin puede publicar/pujar si quiere participar como usuario normal.
+
+        imagenes: lista opcional con TODAS las fotos del vehículo (URLs y/o
+        base64). Si se pasa, 'imagen' (la portada/miniatura de siempre) se
+        toma de ahí; si no se pasa, se comporta como antes (una sola foto).
+        Ver Carro.__init__ en modelos.py para el detalle del fallback.
         """
         vendedor = self.usuarios.get(id_vendedor)
         if not vendedor:
@@ -396,31 +402,14 @@ class AdministradorCompraVenta:
         if coche_id in self.carros:
             return False, f"Ya existe un carro publicado con el id {coche_id}."
 
-        # --- Validación de rango/formato ---
-        # Sin esto, un precio_base/precio_reserva no numérico, negativo o
-        # NaN/infinito (ver _es_numero_positivo más arriba) quedaba guardado
-        # tal cual y terminaba corrompiendo money() y las sumas de los
-        # reportes financieros más adelante. duracion_dias <= 0 es un caso
-        # aparte: aprobar_subasta() calcula fecha_fin = ahora + duracion_dias,
-        # así que con 0 o negativo la subasta queda "vencida" en el instante
-        # mismo en que el admin la aprueba, sin que nadie llegue a pujar.
-        if not _es_numero_positivo(precio_base):
-            return False, "El precio base debe ser un número mayor a 0."
-        if not _es_numero_no_negativo(precio_reserva):
-            return False, "El precio de reserva debe ser un número válido (0 o mayor)."
-        if not _es_numero_no_negativo(kilometraje):
-            return False, "El kilometraje debe ser un número válido (0 o mayor)."
-        anio_maximo = datetime.now(timezone.utc).year + 1
-        if not isinstance(anio, int) or isinstance(anio, bool) or not (1900 <= anio <= anio_maximo):
-            return False, f"El año debe ser un número entero entre 1900 y {anio_maximo}."
-        if not _es_numero_positivo(duracion_dias):
-            return False, "La duración de la subasta debe ser de al menos 1 día."
+        imagenes = imagenes or ([imagen] if imagen else [])
+        imagen_portada = imagen or (imagenes[0] if imagenes else None)
 
         nuevo_carro = Carro(
             coche_id, id_vendedor, marca, modelo, anio, kilometraje, precio_base,
             precio_reserva, estado_subasta="pendiente_revision",
             especificaciones=especificaciones, extras=extras,
-            imagen=imagen, condicion_general=condicion_general,
+            imagen=imagen_portada, imagenes=imagenes, condicion_general=condicion_general,
             descripcion_danos=descripcion_danos, documentos_en_regla=documentos_en_regla,
             duracion_dias=duracion_dias,
         )
@@ -490,17 +479,6 @@ class AdministradorCompraVenta:
             return False, "El usuario no existe."
         if not carro:
             return False, "El carro no existe."
-        if not _es_numero_positivo(monto):
-            # Sin este chequeo, un monto no numérico (ej. pasado directo por
-            # un caller que no sea la UI actual) rompía esta función con un
-            # TypeError sin capturar en el "monto <= monto_minimo" de abajo,
-            # violando el contrato (bool, resultado) de todo el módulo. Y
-            # un monto tipo NaN/infinito (Python acepta float("nan") y
-            # float("inf") sin lanzar ValueError, así que el try/except de
-            # la vista no alcanza a frenarlos) se colaba silenciosamente:
-            # "nan <= monto_minimo" y "inf <= monto_minimo" son ambos False
-            # en Python, así que esa comparación nunca los rechazaba.
-            return False, "El monto de la puja debe ser un número válido mayor a 0."
         if carro.estado_subasta != "activa" or carro.esta_vencida():
             return False, f"La subasta de {carro.marca} {carro.modelo} ya no está activa."
         if not usuario.verificado:
@@ -524,6 +502,26 @@ class AdministradorCompraVenta:
         self.pujas.append(nueva_puja)
         usuario.registrar_oferta(id_carro=id_carro, monto=monto)
 
+        # A quién hay que avisarle "te superaron": la persona que tenía la
+        # oferta en estado 'Activa' para este carro justo ANTES de esta puja
+        # (a lo sumo una, porque solo puede haber un "ganador" vigente por
+        # carro a la vez). Se calcula ANTES del loop de marcado de abajo,
+        # que es el que la pasa a 'Superada' -- si se calculara después ya
+        # no quedaría ninguna en 'Activa' para detectar. No hace falta
+        # revisar cada Puja vieja de pujas_validas: alguien que ya estaba
+        # 'Superada' de una ronda anterior no vuelve a necesitar aviso
+        # ahora, aunque su Puja siga en la lista (es solo historial).
+        id_usuario_superado = None
+        for p in pujas_validas:
+            if p.id_usuario == id_usuario:
+                continue
+            otro = self.usuarios.get(p.id_usuario)
+            if not otro:
+                continue
+            if any(o["id_carro"] == id_carro and o["estado"] == "Activa" for o in otro.historial_ofertas):
+                id_usuario_superado = p.id_usuario
+                break
+
         # Las pujas anteriores de este mismo carro quedan "Superada"
         for p in pujas_validas:
             otro = self.usuarios.get(p.id_usuario)
@@ -533,7 +531,91 @@ class AdministradorCompraVenta:
                 if oferta["id_carro"] == id_carro and oferta["estado"] == "Activa":
                     oferta["estado"] = "Superada"
 
+        if id_usuario_superado:
+            self.crear_notificacion(
+                id_usuario_destino=id_usuario_superado,
+                tipo="puja_superada",
+                texto=f"Te superaron la puja en {carro.marca} {carro.modelo} ({carro.anio}): "
+                      f"la nueva puja más alta es ${monto:,.0f}.",
+                id_carro=id_carro,
+            )
+
         return True, nueva_puja
+
+    # =====================================================================
+    # MÓDULO NOTIFICACIONES (avisos del sistema, hoy solo "puja_superada")
+    # =====================================================================
+    def crear_notificacion(self, id_usuario_destino, tipo, texto, id_carro=None):
+        """Punto único de creación de notificaciones -- lo usa registrar_puja()
+        arriba, y a futuro cualquier otro evento que necesite avisarle algo a
+        un usuario (subasta aprobada/rechazada, etc.) puede llamarlo igual."""
+        nueva = Notificacion(
+            id_notificacion=f"not_{len(self.notificaciones) + 1:05d}",
+            id_usuario_destino=id_usuario_destino,
+            tipo=tipo,
+            texto=texto,
+            id_carro=id_carro,
+        )
+        self.notificaciones.append(nueva)
+        return nueva
+
+    def obtener_notificaciones_usuario(self, id_usuario):
+        """Historial completo de notificaciones de este usuario, más
+        recientes primero -- para el panel de views/notificaciones_dialog.py."""
+        propias = [n for n in self.notificaciones if n.id_usuario_destino == id_usuario]
+        propias.sort(key=lambda n: n.fecha_hora, reverse=True)
+        return [n.to_dict() for n in propias]
+
+    def contar_notificaciones_no_leidas(self, id_usuario):
+        """Alimenta el badge de campanita en 'Subastas Activas' (ver
+        views/subastas_activas_view.py), igual que
+        contar_mensajes_no_leidos_totales alimenta el de mensajes."""
+        return len([n for n in self.notificaciones
+                    if n.id_usuario_destino == id_usuario and not n.leido])
+
+    def marcar_notificaciones_leidas(self, id_usuario):
+        """Se llama al abrir el panel de notificaciones -- mismo criterio que
+        abrir un chat marca sus mensajes como leídos."""
+        for n in self.notificaciones:
+            if n.id_usuario_destino == id_usuario:
+                n.leido = True
+
+    def obtener_notificaciones_nuevas_sin_avisar(self, id_usuario):
+        """Las que todavía no se le mostraron como aviso emergente (SnackBar)
+        a ESTA cuenta dentro de la app. No exige que además estén sin leer —
+        una notificación puede seguir sin leer después de avisada (ver
+        docstring de Notificacion en modelos.py)."""
+        nuevas = [n for n in self.notificaciones
+                  if n.id_usuario_destino == id_usuario and not n.avisada_en_app]
+        nuevas.sort(key=lambda n: n.fecha_hora)
+        return [n.to_dict() for n in nuevas]
+
+    def marcar_notificaciones_avisadas(self, id_usuario):
+        """Se llama apenas se le muestra el SnackBar a la cuenta activa (ver
+        main.py: avisar_notificaciones_nuevas), para no repetir el mismo
+        aviso en la próxima reconstrucción de pantalla."""
+        for n in self.notificaciones:
+            if n.id_usuario_destino == id_usuario:
+                n.avisada_en_app = True
+
+    def obtener_todas_notificaciones_sin_avisar(self):
+        """Versión GLOBAL (todos los usuarios) de
+        obtener_notificaciones_nuevas_sin_avisar, para que main.py decida a
+        quién avisarle por correo sin tener que consultar usuario por usuario
+        (ver main.py: procesar_notificaciones_pendientes /
+        backend/notificador_email.py)."""
+        pendientes = [n for n in self.notificaciones if not n.avisada_en_app]
+        pendientes.sort(key=lambda n: n.fecha_hora)
+        return [n.to_dict() for n in pendientes]
+
+    def marcar_notificacion_avisada(self, id_notificacion):
+        """Versión por-id (una sola notificación), para el camino de correo:
+        procesar_notificaciones_pendientes recorre notificaciones de
+        distintos usuarios a la vez, así que necesita marcar de a una."""
+        for n in self.notificaciones:
+            if n.id == id_notificacion:
+                n.avisada_en_app = True
+                return
 
     # =====================================================================
     # MÓDULO VENTA (cierre de subastas)
@@ -621,11 +703,114 @@ class AdministradorCompraVenta:
         return True, carro
 
     # =====================================================================
+    # MÓDULO CALIFICACIONES (reseña del comprador sobre el vendedor)
+    # =====================================================================
+    def calificar_vendedor(self, id_carro, id_calificador, estrellas, comentario=""):
+        """
+        El COMPRADOR que ganó la subasta califica al vendedor. Solo se puede
+        una vez que: la venta está cerrada ('vendido'), el propio comprador
+        ya confirmó la entrega (ver confirmar_entrega arriba -- tiene que
+        haber recibido el auto antes de opinar sobre la experiencia), y no
+        haya calificado esa misma compra antes. No hay edición ni borrado de
+        una calificación ya hecha, mismo criterio de "hecho consumado" que el
+        resto de los cierres de este sistema.
+
+        estrellas: entero de 1 a 5. La reputación del vendedor (ver
+        Usuario.reputacion) se recalcula como el promedio de TODAS las
+        calificaciones que recibió hasta ahora -- no un promedio
+        incremental, para no arrastrar errores de redondeo.
+        """
+        carro = self.carros.get(id_carro)
+        if not carro:
+            return False, "El carro no existe."
+        if carro.estado_subasta != "vendido":
+            return False, "Esta subasta todavía no está cerrada como vendida."
+        if carro.comprador_id != id_calificador:
+            return False, "Solo el comprador que ganó la subasta puede calificar al vendedor."
+        if not carro.entrega_confirmada:
+            return False, "Tenés que confirmar la entrega antes de calificar al vendedor."
+        try:
+            estrellas = int(estrellas)
+        except (TypeError, ValueError):
+            return False, "La calificación tiene que ser un número de 1 a 5."
+        if not (1 <= estrellas <= 5):
+            return False, "La calificación tiene que ser de 1 a 5 estrellas."
+        if self.ya_califico_compra(id_carro, id_calificador):
+            return False, "Ya calificaste esta compra."
+
+        vendedor = self.usuarios.get(carro.vendedor_id)
+        if not vendedor:
+            return False, "El vendedor ya no existe."
+
+        nueva = Calificacion(
+            id_calificacion=f"cal_{len(self.calificaciones) + 1:05d}",
+            id_carro=id_carro,
+            id_calificador=id_calificador,
+            id_calificado=carro.vendedor_id,
+            estrellas=estrellas,
+            comentario=(comentario or "").strip(),
+        )
+        self.calificaciones.append(nueva)
+
+        propias = [c.estrellas for c in self.calificaciones if c.id_calificado == carro.vendedor_id]
+        vendedor.reputacion = round(sum(propias) / len(propias), 1)
+
+        return True, nueva
+
+    def ya_califico_compra(self, id_carro, id_usuario):
+        """Para que la vista sepa si mostrar el formulario de calificar o un
+        aviso de 'ya calificaste esta compra' (ver detalle_subasta_dialog.py)."""
+        return any(c.id_carro == id_carro and c.id_calificador == id_usuario for c in self.calificaciones)
+
+    def obtener_calificaciones_usuario(self, id_usuario):
+        """Todas las calificaciones que recibió este usuario como vendedor,
+        más recientes primero -- para mostrarlas en su perfil público (ver
+        views/perfil_vendedor_dialog.py)."""
+        propias = [c for c in self.calificaciones if c.id_calificado == id_usuario]
+        propias.sort(key=lambda c: c.fecha_hora, reverse=True)
+        resultado = []
+        for c in propias:
+            calificador = self.usuarios.get(c.id_calificador)
+            d = c.to_dict()
+            d["calificador_nombre"] = calificador.nombre if calificador else "Usuario"
+            resultado.append(d)
+        return resultado
+
+    # =====================================================================
+    # MÓDULO FAVORITOS
+    # =====================================================================
+    def agregar_favorito(self, id_usuario, id_carro):
+        """
+        Wrapper de sistema.py sobre Usuario.agregar_favorito() (que ya
+        existía en modelos.py pero nunca se llamaba desde ninguna vista):
+        agrega validación de existencia y el contrato (ok, resultado)
+        estándar del resto de los métodos de acción de esta clase.
+        """
+        usuario = self.usuarios.get(id_usuario)
+        if not usuario:
+            return False, "El usuario no existe."
+        if id_carro not in self.carros:
+            return False, "El carro no existe."
+        agregado = usuario.agregar_favorito(id_carro)
+        if not agregado:
+            return False, "Ese carro ya estaba en tus favoritos."
+        return True, usuario
+
+    def quitar_favorito(self, id_usuario, id_carro):
+        usuario = self.usuarios.get(id_usuario)
+        if not usuario:
+            return False, "El usuario no existe."
+        quitado = usuario.quitar_favorito(id_carro)
+        if not quitado:
+            return False, "Ese carro no estaba en tus favoritos."
+        return True, usuario
+
+    # =====================================================================
     # PUBLICACIÓN simplificada (lo que usa la pantalla "Mis Carros")
     # =====================================================================
     def publicar_carro(self, id_vendedor, marca, modelo, anio, kilometraje,
                         precio_base, precio_reserva, dias_duracion=7,
-                        especificaciones=None, extras=None, imagen=None,
+                        especificaciones=None, extras=None, imagen=None, imagenes=None,
                         condicion_general=None, descripcion_danos="",
                         documentos_en_regla=False):
         """
@@ -640,7 +825,7 @@ class AdministradorCompraVenta:
             id_vendedor=id_vendedor, coche_id=coche_id, marca=marca, modelo=modelo,
             anio=anio, kilometraje=kilometraje, precio_base=precio_base,
             precio_reserva=precio_reserva, especificaciones=especificaciones or {},
-            extras=extras or [], imagen=imagen, condicion_general=condicion_general,
+            extras=extras or [], imagen=imagen, imagenes=imagenes, condicion_general=condicion_general,
             descripcion_danos=descripcion_danos, documentos_en_regla=documentos_en_regla,
             duracion_dias=dias_duracion,
         )
@@ -681,7 +866,9 @@ class AdministradorCompraVenta:
             resultado.append(d)
         return resultado
 
-    def obtener_subastas_explorar(self, id_usuario=None, filtro_texto=None):
+    def obtener_subastas_explorar(self, id_usuario=None, filtro_texto=None, marca=None,
+                                   precio_min=None, precio_max=None, anio_min=None, anio_max=None,
+                                   orden="cierra_pronto"):
         """
         Pestaña 'EXPLORAR SUBASTAS': todas las subastas activas de la plataforma.
 
@@ -689,6 +876,17 @@ class AdministradorCompraVenta:
         modelo o año contienen ese texto (sin distinguir mayúsculas/acentos
         exactos — comparación simple, suficiente para el buscador de la
         barra superior).
+
+        Filtros adicionales (todos opcionales, se combinan con AND entre sí
+        y con filtro_texto):
+          marca: coincidencia exacta (ya viene de un dropdown poblado con
+                 obtener_marcas_activas(), no hace falta comparación difusa).
+          precio_min / precio_max: sobre la PUJA MÁS ALTA actual (lo que de
+                 verdad costaría ganar la subasta ahora mismo), no sobre
+                 precio_base.
+          anio_min / anio_max: sobre el año del vehículo.
+          orden: 'cierra_pronto' (default, como antes) | 'precio_asc' |
+                 'precio_desc' | 'mas_pujas'.
         """
         activos = [c for c in self.carros.values() if c.estado_subasta == "activa"]
         if filtro_texto:
@@ -697,7 +895,13 @@ class AdministradorCompraVenta:
                 c for c in activos
                 if q in c.marca.lower() or q in c.modelo.lower() or q in str(c.anio)
             ]
-        activos.sort(key=lambda c: c.tiempo_restante() or 0)
+        if marca:
+            activos = [c for c in activos if c.marca == marca]
+        if anio_min is not None:
+            activos = [c for c in activos if c.anio >= anio_min]
+        if anio_max is not None:
+            activos = [c for c in activos if c.anio <= anio_max]
+
         resultado = []
         for c in activos:
             d = c.to_dict()
@@ -705,7 +909,26 @@ class AdministradorCompraVenta:
             d["num_pujas"] = len([p for p in self.pujas if p.id_carro == c.id])
             d["es_propio"] = (c.vendedor_id == id_usuario) if id_usuario else False
             resultado.append(d)
+
+        if precio_min is not None:
+            resultado = [d for d in resultado if d["puja_maxima"] >= precio_min]
+        if precio_max is not None:
+            resultado = [d for d in resultado if d["puja_maxima"] <= precio_max]
+
+        claves_orden = {
+            "cierra_pronto": lambda d: d["horas_restantes"] if d["horas_restantes"] is not None else float("inf"),
+            "precio_asc": lambda d: d["puja_maxima"],
+            "precio_desc": lambda d: -d["puja_maxima"],
+            "mas_pujas": lambda d: -d["num_pujas"],
+        }
+        resultado.sort(key=claves_orden.get(orden, claves_orden["cierra_pronto"]))
         return resultado
+
+    def obtener_marcas_activas(self):
+        """Marcas distintas entre las subastas activas, para poblar el
+        dropdown de filtro de 'Explorar Subastas' sin inventar una lista fija
+        de marcas — si mañana se publica una marca nueva, aparece sola."""
+        return sorted({c.marca for c in self.carros.values() if c.estado_subasta == "activa"})
 
     def obtener_mis_subastas_activas(self, id_usuario):
         """

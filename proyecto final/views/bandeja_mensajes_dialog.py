@@ -25,7 +25,7 @@ from views.chat_dialog import mostrar_chat
 def _fila_conversacion(conv: dict, on_click) -> ft.Container:
     badge = (
         ft.Container(
-            content=ft.Text(str(conv["no_leidos"]), size=11, color=Colors.BACKGROUND, weight=ft.FontWeight.W_600),
+            content=ft.Text(str(conv["no_leidos"]), size=11, color=Colors.TEXT_ON_ACCENT, weight=ft.FontWeight.W_600),
             bgcolor=Colors.ACCENT_TEAL, width=20, height=20, border_radius=10,
             alignment=ft.Alignment.CENTER,
         )

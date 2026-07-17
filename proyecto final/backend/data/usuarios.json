@@ -211,7 +211,8 @@
     "reputacion_estrellas": 0.0,
     "verificado": true,
     "autos_en_posesion": [
-      "auto_006"
+      "auto_006",
+      "auto_003"
     ],
     "historial_ofertas": [
       {
@@ -222,16 +223,21 @@
       {
         "id_carro": "auto_003",
         "monto": 1000000.0,
-        "estado": "Superada"
+        "estado": "Ganada"
       },
       {
         "id_carro": "auto_003",
         "monto": 99.0,
-        "estado": "Activa"
+        "estado": "Ganada"
       },
       {
         "id_carro": "auto_102",
         "monto": 360000.0,
+        "estado": "Superada"
+      },
+      {
+        "id_carro": "auto_004",
+        "monto": 888.0,
         "estado": "Activa"
       }
     ],
@@ -250,13 +256,18 @@
     "autos_en_posesion": [
       "auto_005",
       "auto_004",
-      "auto_003"
+      "auto_004"
     ],
     "historial_ofertas": [
       {
         "id_carro": "auto_003",
         "monto": 100000001.0,
         "estado": "Superada"
+      },
+      {
+        "id_carro": "auto_102",
+        "monto": 5000000.0,
+        "estado": "Activa"
       }
     ],
     "favoritos": []

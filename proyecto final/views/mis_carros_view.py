@@ -7,8 +7,11 @@ través de un formulario plegable con:
 - Datos básicos y especificaciones técnicas.
 - Información para que un admin/experto pueda verificar el vehículo
   (condición general, descripción de daños, documentos en regla).
-- Una foto del vehículo, ya sea pegando un link o subiendo un archivo del
-  dispositivo (ver ft.FilePicker más abajo).
+- Una o más fotos del vehículo: se pueden subir varios archivos del
+  dispositivo a la vez y/o pegar varios links (uno por línea) — ver
+  Carro.imagenes en modelos.py. La primera queda como portada/miniatura
+  (Carro.imagen), que es la que se sigue usando en todas las tarjetas del
+  proyecto; la galería completa solo se ve en el panel de detalle.
 
 Todo lo publicado nace en estado 'pendiente_revision' — ver views/revision_view.py.
 
@@ -111,7 +114,7 @@ def _fila_carro_ganado(c: dict, sistema, usuario_actual, page, on_change) -> ft.
                 ft.Column(
                     [
                         ft.Container(
-                            content=ft.Text("✓ ENTREGADO", size=11, weight=ft.FontWeight.W_600, color=Colors.BACKGROUND),
+                            content=ft.Text("✓ ENTREGADO", size=11, weight=ft.FontWeight.W_600, color=Colors.TEXT_ON_ACCENT),
                             bgcolor="#7ED957",
                             padding=ft.Padding.symmetric(horizontal=10, vertical=4),
                             border_radius=6,
@@ -132,7 +135,10 @@ def _fila_carro_ganado(c: dict, sistema, usuario_actual, page, on_change) -> ft.
 
 
 def mis_carros_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None,
-                     on_account_click=None, on_search=None, valor_busqueda="", on_messages_click=None) -> ft.Container:
+                     on_account_click=None, on_search=None, valor_busqueda="", on_messages_click=None,
+                     valor_filtros=None, on_filtros_change=None) -> ft.Container:
+    # valor_filtros / on_filtros_change son de 'Explorar Subastas' (ver ese
+    # archivo); se aceptan solo por la firma común de VISTAS en main.py.
     mis_carros = sistema.obtener_mis_carros(usuario_actual.id)
 
     # --- Campos del formulario (datos básicos) ---
@@ -175,61 +181,95 @@ def mis_carros_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, o
     # además, pick_files() es async y devuelve directamente la lista de
     # archivos (no llega por un evento on_result separado como en versiones
     # más viejas de la documentación).
-    imagen_estado = {"valor": None}
-    ANCHO_PREVIEW, ALTO_PREVIEW = 340, 220
+    # --- Fotos del vehículo: se pueden agregar VARIAS, combinando archivos
+    # subidos desde el dispositivo (con selección múltiple) y/o links
+    # pegados (uno por línea). Todo termina en imagenes_estado["valor"]
+    # (patrón {"valor": ...} en vez de nonlocal, ya establecido en el
+    # proyecto) para los archivos subidos; los links se agregan recién al
+    # publicar (ver handle_publicar más abajo), así no hace falta un botón
+    # de "vista previa" aparte para ellos. La PRIMERA imagen de la lista
+    # final queda como portada — es la miniatura que se sigue usando en
+    # TODAS las demás tarjetas del proyecto (Mis Carros, Explorar Subastas,
+    # Ventas, etc. — ver Carro.__init__ en modelos.py).
+    #
+    # NOTA DE COMPATIBILIDAD (Flet 0.85.3): ft.FilePicker se autorregistra
+    # por contexto y NO necesita agregarse a page.overlay; pick_files() es
+    # async y devuelve directamente la lista de archivos. Con
+    # allow_multiple=True esa lista puede traer más de un elemento (antes,
+    # con allow_multiple=False, el proyecto solo miraba archivos[0]).
+    imagenes_estado = {"valor": []}
+    MINIATURA_ANCHO, MINIATURA_ALTO = 88, 64
 
-    imagen_url_f = ft.TextField(label="Link de imagen (opcional)", width=300)
-    imagen_preview = ft.Container(content=auto_imagen(None, width=ANCHO_PREVIEW, height=ALTO_PREVIEW))
-    imagen_info = ft.Text("", size=11, color=Colors.TEXT_MUTED)
-
-    def handle_vista_previa(e):
-        url = (imagen_url_f.value or "").strip() or None
-        imagen_estado["valor"] = url
-        imagen_info.value = "Se usará el link de arriba." if url else ""
-        imagen_info.color = Colors.TEXT_MUTED
-        imagen_preview.content = auto_imagen(url, width=ANCHO_PREVIEW, height=ALTO_PREVIEW)
-        page.update()
-
-    vista_previa_btn = ft.TextButton(
-        content=ft.Text("Vista previa", color=Colors.ACCENT_INDIGO, size=12),
-        on_click=handle_vista_previa,
+    imagenes_links_f = ft.TextField(
+        label="Links de imágenes (uno por línea, opcional)",
+        width=300, multiline=True, min_lines=2, max_lines=4,
     )
+    imagenes_preview_row = ft.Row(spacing=10, wrap=True, run_spacing=10)
+    imagenes_info = ft.Text("", size=11, color=Colors.TEXT_MUTED)
+
+    def handle_quitar_imagen(indice):
+        def handler(e):
+            del imagenes_estado["valor"][indice]
+            _refrescar_preview_imagenes()
+            page.update()
+        return handler
+
+    def _refrescar_preview_imagenes():
+        imagenes_preview_row.controls = [
+            ft.Column(
+                [
+                    auto_imagen(img, width=MINIATURA_ANCHO, height=MINIATURA_ALTO),
+                    ft.IconButton(
+                        icon=ft.Icons.CLOSE, icon_size=14, icon_color="#E26A6A",
+                        on_click=handle_quitar_imagen(i),
+                        tooltip="Quitar esta foto",
+                    ),
+                ],
+                spacing=0,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            )
+            for i, img in enumerate(imagenes_estado["valor"])
+        ]
+
+    _refrescar_preview_imagenes()  # arranca vacío (sin fotos todavía)
 
     file_picker = ft.FilePicker()
 
-    async def handle_subir_archivo(e):
+    async def handle_subir_archivos(e):
         archivos = await file_picker.pick_files(
-            dialog_title="Selecciona una foto del vehículo",
+            dialog_title="Selecciona una o más fotos del vehículo",
             file_type=ft.FilePickerFileType.IMAGE,
-            allow_multiple=False,
+            allow_multiple=True,
             with_data=True,
         )
         if not archivos:
             return  # el usuario cerró el selector sin elegir nada
 
-        archivo = archivos[0]
-        if not archivo.bytes:
-            imagen_info.value = "No se pudo leer el archivo seleccionado."
-            imagen_info.color = "#E26A6A"
-            page.update()
-            return
-        if len(archivo.bytes) > TAMANO_MAXIMO_IMAGEN_BYTES:
-            imagen_info.value = f"La imagen pesa demasiado (máximo {TAMANO_MAXIMO_IMAGEN_MB} MB)."
-            imagen_info.color = "#E26A6A"
-            page.update()
-            return
+        agregadas, rechazadas = 0, []
+        for archivo in archivos:
+            if not archivo.bytes:
+                rechazadas.append(archivo.name)
+                continue
+            if len(archivo.bytes) > TAMANO_MAXIMO_IMAGEN_BYTES:
+                rechazadas.append(archivo.name)
+                continue
+            imagenes_estado["valor"].append(base64.b64encode(archivo.bytes).decode("ascii"))
+            agregadas += 1
 
-        imagen_b64 = base64.b64encode(archivo.bytes).decode("ascii")
-        imagen_estado["valor"] = imagen_b64
-        imagen_url_f.value = ""  # el archivo subido tiene prioridad sobre el link
-        imagen_info.value = f"Imagen cargada desde el dispositivo: {archivo.name}"
-        imagen_info.color = Colors.ACCENT_TEAL
-        imagen_preview.content = auto_imagen(imagen_b64, width=ANCHO_PREVIEW, height=ALTO_PREVIEW)
+        partes = []
+        if agregadas:
+            partes.append(f"{agregadas} foto(s) agregada(s).")
+        if rechazadas:
+            partes.append(f"No se pudieron agregar (archivo ilegible o mayor a {TAMANO_MAXIMO_IMAGEN_MB} MB): "
+                          + ", ".join(rechazadas))
+        imagenes_info.value = " ".join(partes)
+        imagenes_info.color = "#E26A6A" if rechazadas and not agregadas else Colors.ACCENT_TEAL
+        _refrescar_preview_imagenes()
         page.update()
 
-    subir_archivo_btn = ft.OutlinedButton(
-        content=ft.Text("Subir desde el dispositivo", size=12),
-        on_click=handle_subir_archivo,
+    subir_archivos_btn = ft.OutlinedButton(
+        content=ft.Text("Subir fotos desde el dispositivo", size=12),
+        on_click=handle_subir_archivos,
     )
 
     error_text = ft.Text("", color="#E26A6A", size=12)
@@ -267,19 +307,17 @@ def mis_carros_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, o
                     documentos_f,
 
                     ft.Container(height=16),
-                    ft.Text("Foto del vehículo", size=12, weight=ft.FontWeight.W_600, color=Colors.TEXT_SECONDARY),
-                    ft.Text("Pega un link o sube una foto desde tu dispositivo.",
+                    ft.Text("Fotos del vehículo", size=12, weight=ft.FontWeight.W_600, color=Colors.TEXT_SECONDARY),
+                    ft.Text("Subí una o más fotos desde tu dispositivo, y/o pegá links (uno por línea).",
                              size=11, color=Colors.TEXT_MUTED),
                     ft.Container(height=6),
+                    imagenes_preview_row,
+                    ft.Container(height=8),
                     ft.Row(
                         [
-                            imagen_preview,
+                            imagenes_links_f,
                             ft.Column(
-                                [
-                                    imagen_url_f,
-                                    ft.Row([vista_previa_btn, subir_archivo_btn], spacing=8, wrap=True),
-                                    imagen_info,
-                                ],
+                                [subir_archivos_btn, imagenes_info],
                                 spacing=6,
                             ),
                         ],
@@ -327,17 +365,19 @@ def mis_carros_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, o
             }.items() if v
         }
         extras = [x.strip() for x in (extras_f.value or "").split(",") if x.strip()]
-        # Prioridad: lo último fijado explícitamente (link con "Vista previa" o
-        # archivo subido) y, si nada de eso pasó, el texto que haya en el campo
-        # de link aunque no se haya clickeado "Vista previa" (compatibilidad
-        # con el flujo anterior de pegar-y-publicar directo).
-        imagen_final = imagen_estado["valor"] or (imagen_url_f.value or "").strip() or None
+        # Combina las fotos subidas desde el dispositivo con los links
+        # pegados (uno por línea) -- el orden importa: la primera queda como
+        # portada/miniatura (ver Carro.__init__ en modelos.py), así que las
+        # subidas van primero porque normalmente son las que el vendedor
+        # sacó del auto en cuestión, y los links quedan al final.
+        links_pegados = [linea.strip() for linea in (imagenes_links_f.value or "").splitlines() if linea.strip()]
+        imagenes_final = list(imagenes_estado["valor"]) + links_pegados
 
         ok, resultado = sistema.publicar_carro(
             id_vendedor=usuario_actual.id, marca=marca_f.value, modelo=modelo_f.value,
             anio=anio, kilometraje=km, precio_base=base, precio_reserva=reserva,
             dias_duracion=dias, especificaciones=especificaciones, extras=extras,
-            imagen=imagen_final, condicion_general=condicion_f.value,
+            imagenes=imagenes_final, condicion_general=condicion_f.value,
             descripcion_danos=danos_f.value or "", documentos_en_regla=documentos_f.value,
         )
         if not ok:

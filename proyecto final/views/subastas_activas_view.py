@@ -19,8 +19,9 @@ curso, no para el historial de lo ya recibido.
 
 import flet as ft
 from theme import Colors, Sizes, card
-from views.shared import page_shell, money, empty_state, auto_imagen
+from views.shared import page_shell, money, empty_state, auto_imagen, boton_icono_con_badge
 from views.detalle_subasta_dialog import mostrar_detalle_subasta
+from views.notificaciones_dialog import mostrar_notificaciones
 
 ESTADO_OFERTA_COLOR = {
     "Activa": "#7ED957",
@@ -89,7 +90,7 @@ def _fila_mi_subasta(c: dict, sistema, usuario_actual, page, on_change) -> ft.Co
                             expand=True,
                         ),
                         ft.Container(
-                            content=ft.Text(c["mi_estado"], size=11, weight=ft.FontWeight.W_600, color=Colors.BACKGROUND),
+                            content=ft.Text(c["mi_estado"], size=11, weight=ft.FontWeight.W_600, color=Colors.TEXT_ON_ACCENT),
                             bgcolor=color_estado,
                             padding=ft.Padding.symmetric(horizontal=10, vertical=4),
                             border_radius=6,
@@ -188,7 +189,11 @@ def _fila_compra_ganada(c: dict, sistema, usuario_actual, page, on_change) -> ft
 
 def subastas_activas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None,
                            on_account_click=None, on_search=None, valor_busqueda="",
-                           on_messages_click=None) -> ft.Container:
+                           on_messages_click=None, valor_filtros=None, on_filtros_change=None) -> ft.Container:
+    # valor_filtros / on_filtros_change no se usan en esta pestaña (son de
+    # 'Explorar Subastas' — ver ese archivo); se aceptan solo para que todas
+    # las pestañas de VISTAS en main.py tengan la misma firma, mismo criterio
+    # que ya se usa acá mismo con on_change en dashboard_view.py.
     mis_subastas = sistema.obtener_mis_subastas_activas(usuario_actual.id)
     compras_ganadas = sistema.obtener_mis_compras_pendientes_entrega(usuario_actual.id)
 
@@ -201,9 +206,34 @@ def subastas_activas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=N
             "Ve a 'Explorar Subastas' para empezar a participar."
         )]
 
+    # --- Campanita de notificaciones ("te superaron una puja", ver
+    # sistema.crear_notificacion / views/notificaciones_dialog.py). Se pone
+    # acá (y no solo en el aviso emergente de main.py) porque el aviso
+    # emergente se muestra una única vez y desaparece, mientras que este
+    # ícono con badge queda de forma persistente hasta que se abre el panel
+    # y se marcan como leídas — mismo criterio que el ícono de mensajes de
+    # la barra superior, pero acotado a esta pestaña porque acá es donde
+    # tiene sentido revisar "qué pasó con mis pujas". ---
+    no_leidas = sistema.contar_notificaciones_no_leidas(usuario_actual.id)
+
+    def handle_abrir_notificaciones():
+        mostrar_notificaciones(page, sistema, usuario_actual, on_change)
+
     secciones: list[ft.Control] = [
-        ft.Text("Subastas Activas", size=18, weight=ft.FontWeight.BOLD, color=Colors.TEXT_PRIMARY),
-        ft.Text("Las subastas en las que ya estás participando.", size=13, color=Colors.TEXT_SECONDARY),
+        ft.Row(
+            [
+                ft.Column(
+                    [
+                        ft.Text("Subastas Activas", size=18, weight=ft.FontWeight.BOLD, color=Colors.TEXT_PRIMARY),
+                        ft.Text("Las subastas en las que ya estás participando.", size=13, color=Colors.TEXT_SECONDARY),
+                    ],
+                    spacing=2,
+                ),
+                boton_icono_con_badge(ft.Icons.NOTIFICATIONS_OUTLINED, no_leidas, handle_abrir_notificaciones,
+                                       tooltip="Notificaciones"),
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        ),
         ft.Container(height=Sizes.GAP),
         *lista,
     ]

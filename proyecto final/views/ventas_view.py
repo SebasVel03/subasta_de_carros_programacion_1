@@ -64,7 +64,7 @@ def _fila_gasto(c: dict, sistema, usuario_actual, page, on_change) -> ft.Contain
     entregado = c.get("entrega_confirmada", False)
     badge_entrega = ft.Container(
         content=ft.Text("ENTREGADO" if entregado else "PENDIENTE DE ENTREGA", size=11,
-                         weight=ft.FontWeight.W_600, color=Colors.BACKGROUND),
+                         weight=ft.FontWeight.W_600, color=Colors.TEXT_ON_ACCENT),
         bgcolor="#7ED957" if entregado else Colors.TEXT_SECONDARY,
         padding=ft.Padding.symmetric(horizontal=10, vertical=4),
         border_radius=6,
@@ -104,7 +104,9 @@ def _nombre_archivo_reporte(usuario_actual) -> str:
 
 def ventas_view(page: ft.Page, sistema, usuario_actual, on_nav_click=None, on_change=None,
                  on_account_click=None, on_search=None, valor_busqueda="",
-                 on_messages_click=None) -> ft.Container:
+                 on_messages_click=None, valor_filtros=None, on_filtros_change=None) -> ft.Container:
+    # valor_filtros / on_filtros_change son de 'Explorar Subastas' (ver ese
+    # archivo); se aceptan solo por la firma común de VISTAS en main.py.
     ventas = sistema.obtener_mis_ventas(usuario_actual.id)
     gastos = sistema.obtener_mis_compras_ganadas(usuario_actual.id)
     balance = sistema.obtener_resumen_financiero_usuario(usuario_actual.id)

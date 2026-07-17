@@ -19,9 +19,9 @@ def _burbuja(mensaje, es_mio: bool) -> ft.Row:
         content=ft.Column(
             [
                 ft.Text(mensaje.texto, size=13,
-                         color=Colors.BACKGROUND if es_mio else Colors.TEXT_PRIMARY),
+                         color=Colors.TEXT_ON_ACCENT if es_mio else Colors.TEXT_PRIMARY),
                 ft.Text(hora, size=10,
-                         color=Colors.BACKGROUND if es_mio else Colors.TEXT_SECONDARY),
+                         color=Colors.TEXT_ON_ACCENT if es_mio else Colors.TEXT_SECONDARY),
             ],
             spacing=2,
             horizontal_alignment=ft.CrossAxisAlignment.END if es_mio else ft.CrossAxisAlignment.START,

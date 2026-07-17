@@ -6,6 +6,10 @@ superior, no es una pestaña más del menú). Incluye:
 - Foto de perfil: pegar un link o subir un archivo del dispositivo (mismo
   mecanismo que la foto de un carro en Mis Carros — ver ese archivo).
 - Configuración simple: editar nombre/teléfono, cambiar contraseña.
+- Apariencia: modo claro/oscuro (ver theme.py: Colors.aplicar_modo). El
+  cambio es INMEDIATO y global — no hace falta guardar aparte, ya que
+  on_toggle_tema (implementado en main.py) persiste la preferencia a disco
+  y reconstruye la pantalla apenas se mueve el switch.
 - Selector de cuentas: si la persona inició sesión con más de una cuenta en
   esta misma sesión de la app, puede cambiar entre ellas sin volver a
   escribir la contraseña, agregar otra cuenta, o cerrar sesión.
@@ -49,7 +53,7 @@ def _fila_cuenta(usuario, es_actual, on_click) -> ft.Container:
 def perfil_view(page: ft.Page, sistema, usuario_actual, cuentas_sesion=None,
                  on_nav_click=None, on_change=None, on_account_click=None, on_search=None, valor_busqueda="",
                  on_switch_account=None, on_add_account=None, on_logout=None,
-                 on_messages_click=None) -> ft.Container:
+                 on_messages_click=None, on_toggle_tema=None, modo_claro=False) -> ft.Container:
     cuentas_sesion = cuentas_sesion or ([usuario_actual] if usuario_actual else [])
 
     # --- Tarjeta de información básica ---
@@ -316,6 +320,48 @@ def perfil_view(page: ft.Page, sistema, usuario_actual, cuentas_sesion=None,
         expand=True,
     )
 
+    # --- Apariencia: modo claro / oscuro (ver theme.py: Colors.aplicar_modo).
+    # El switch no tiene botón de "guardar" propio a propósito: on_toggle_tema
+    # (implementado en main.py) ya persiste la preferencia y reconstruye la
+    # pantalla apenas cambia, así que el efecto es inmediato — igual que
+    # cambiar de pestaña, no hace falta una confirmación extra acá. ---
+    def handle_cambio_tema(e):
+        if on_toggle_tema:
+            on_toggle_tema(e.control.value)
+        # No hace falta page.update(): on_toggle_tema reconstruye toda la
+        # pantalla (refrescar_vista_actual), incluido este switch con el
+        # nuevo valor ya reflejado.
+
+    apariencia_card = card(
+        ft.Column(
+            [
+                ft.Text("Apariencia", size=14, weight=ft.FontWeight.BOLD, color=Colors.TEXT_PRIMARY),
+                ft.Container(height=12),
+                ft.Row(
+                    [
+                        ft.Column(
+                            [
+                                ft.Text("Modo claro", size=13, color=Colors.TEXT_PRIMARY),
+                                ft.Text("Cambia el fondo oscuro de la app por uno claro.",
+                                         size=11, color=Colors.TEXT_MUTED),
+                            ],
+                            spacing=2,
+                            expand=True,
+                        ),
+                        ft.Switch(
+                            value=modo_claro,
+                            active_color=Colors.ACCENT_TEAL,
+                            on_change=handle_cambio_tema,
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                ),
+            ],
+            spacing=0,
+        ),
+        padding=20,
+    )
+
     # --- Selector de cuentas ---
     filas_cuentas = [
         _fila_cuenta(u, u.id == usuario_actual.id, on_switch_account)
@@ -359,6 +405,8 @@ def perfil_view(page: ft.Page, sistema, usuario_actual, cuentas_sesion=None,
             foto_perfil_card,
             ft.Container(height=Sizes.GAP),
             ft.Row([datos_card, password_card], spacing=Sizes.GAP, vertical_alignment=ft.CrossAxisAlignment.START),
+            ft.Container(height=Sizes.GAP),
+            apariencia_card,
             ft.Container(height=Sizes.GAP),
             cuentas_card,
         ],

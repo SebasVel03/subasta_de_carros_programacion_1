@@ -136,7 +136,7 @@ class Carro:
                  precio_base, precio_reserva, estado_subasta="pendiente_revision",
                  fecha_inicio=None, fecha_fin=None, especificaciones=None,
                  extras=None, precio_final_venta=0.0, comprador_id=None,
-                 imagen=None, condicion_general=None, descripcion_danos="",
+                 imagen=None, imagenes=None, condicion_general=None, descripcion_danos="",
                  documentos_en_regla=False, duracion_dias=7,
                  fecha_publicacion=None, motivo_rechazo=None,
                  entrega_confirmada=False, fecha_entrega_confirmada=None):
@@ -158,6 +158,15 @@ class Carro:
         # --- Imagen del vehículo: puede ser una URL o un string base64 (sin
         # el prefijo 'data:'), ft.Image en Flet acepta ambos en 'src'. ---
         self.imagen = imagen
+        # --- Galería completa (varias fotos). 'imagen' se mantiene como la
+        # portada/miniatura por compatibilidad: TODAS las tarjetas del
+        # proyecto (Mis Carros, Explorar Subastas, Ventas, etc.) siguen
+        # usando auto_imagen(c["imagen"]) para mostrar una sola miniatura;
+        # solo el panel de detalle (views/detalle_subasta_dialog.py) muestra
+        # la galería completa. Si no se pasa imagenes explícitamente, se
+        # deriva de 'imagen' para que los datos viejos (o cargados a mano)
+        # sigan funcionando igual que antes.
+        self.imagenes = imagenes if imagenes is not None else ([imagen] if imagen else [])
         # --- Campos para que un admin/experto pueda verificar la subasta ---
         self.condicion_general = condicion_general  # 'Excelente' | 'Buena' | 'Regular' | 'Necesita reparación'
         self.descripcion_danos = descripcion_danos
@@ -201,6 +210,7 @@ class Carro:
             "precio_final_venta": self.precio_final_venta,
             "comprador_id": self.comprador_id,
             "imagen": self.imagen,
+            "imagenes": list(self.imagenes),
             "condicion_general": self.condicion_general,
             "descripcion_danos": self.descripcion_danos,
             "documentos_en_regla": self.documentos_en_regla,
@@ -264,4 +274,84 @@ class Mensaje:
             "texto": self.texto,
             "fecha_hora": self.fecha_hora,
             "leido": self.leido,
+        }
+
+
+class Notificacion:
+    """
+    Aviso interno del sistema para un usuario sobre algo que pasó en la
+    plataforma (por ahora, el único tipo es 'puja_superada' — ver
+    AdministradorCompraVenta.registrar_puja en sistema.py). Vive aparte de
+    Mensaje porque no es una conversación entre dos personas, es un aviso
+    que genera el propio sistema.
+
+    avisada_en_app y leido son dos cosas DISTINTAS a propósito:
+      - avisada_en_app: si ya se le mostró como aviso emergente (SnackBar)
+        apenas entró a la app, o si ya se decidió mandarle un correo en su
+        lugar (ver main.py: procesar_notificaciones_pendientes /
+        avisar_notificaciones_nuevas). Se pone en True una sola vez, para
+        no repetir el mismo aviso en cada reconstrucción de pantalla.
+      - leido: si el usuario ya abrió el panel de notificaciones y la vio
+        ahí (ver views/notificaciones_dialog.py). Es lo que hace bajar el
+        badge de 'Subastas Activas' (ver contar_notificaciones_no_leidas).
+    Una notificación puede estar avisada (ya apareció como SnackBar o ya se
+    mandó el correo) pero seguir sin leer (todavía no la revisaron a
+    propósito en el panel) — así el badge se mantiene aunque el SnackBar ya
+    haya desaparecido de la pantalla.
+    """
+
+    def __init__(self, id_notificacion, id_usuario_destino, tipo, texto,
+                 id_carro=None, fecha_hora=None, leido=False, avisada_en_app=False):
+        self.id = id_notificacion
+        self.id_usuario_destino = id_usuario_destino
+        self.tipo = tipo
+        self.texto = texto
+        self.id_carro = id_carro
+        self.fecha_hora = fecha_hora or _ahora_iso()
+        self.leido = leido
+        self.avisada_en_app = avisada_en_app
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "id_usuario_destino": self.id_usuario_destino,
+            "tipo": self.tipo,
+            "texto": self.texto,
+            "id_carro": self.id_carro,
+            "fecha_hora": self.fecha_hora,
+            "leido": self.leido,
+            "avisada_en_app": self.avisada_en_app,
+        }
+
+
+class Calificacion:
+    """
+    Reseña que el comprador que ganó una subasta deja sobre el vendedor,
+    después de que la venta se cerró y la entrega ya fue confirmada (ver
+    AdministradorCompraVenta.calificar_vendedor en sistema.py). Vive aparte
+    de Mensaje/Notificacion porque tiene su propio ciclo de vida — una por
+    venta, nunca se edita ni se borra — y alimenta Usuario.reputacion
+    (el promedio de todas las calificaciones que recibió ese usuario como
+    vendedor se recalcula cada vez que entra una nueva).
+    """
+
+    def __init__(self, id_calificacion, id_carro, id_calificador, id_calificado,
+                 estrellas, comentario="", fecha_hora=None):
+        self.id = id_calificacion
+        self.id_carro = id_carro
+        self.id_calificador = id_calificador
+        self.id_calificado = id_calificado
+        self.estrellas = estrellas
+        self.comentario = comentario
+        self.fecha_hora = fecha_hora or _ahora_iso()
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "id_carro": self.id_carro,
+            "id_calificador": self.id_calificador,
+            "id_calificado": self.id_calificado,
+            "estrellas": self.estrellas,
+            "comentario": self.comentario,
+            "fecha_hora": self.fecha_hora,
         }
